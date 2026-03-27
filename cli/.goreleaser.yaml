@@ -46,5 +46,9 @@ homebrew_casks:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://muga.sh
     description: "Muga CLI — observability for your services"
-    install: bin.install "muga"
-    test: system "#{bin}/muga --version"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/muga"]
+          end
