@@ -61,7 +61,7 @@ func runAuthLogin(t *testing.T, deps *loginDeps, args ...string) (string, error)
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	root := NewRootCmd("dev")
+	root := NewRootCmd("dev", "abc123", "2025-01-01")
 	authCmd := findSubCommand(root, "auth")
 	if authCmd == nil {
 		t.Fatal("auth subcommand not found")
@@ -259,7 +259,7 @@ func TestLoginAlreadyLoggedInConfirm(t *testing.T) {
 		pollInterval: time.Millisecond,
 	}
 
-	root := NewRootCmd("dev")
+	root := NewRootCmd("dev", "abc123", "2025-01-01")
 	authCmd := findSubCommand(root, "auth")
 	authCmd.RemoveCommand(findSubCommand(authCmd, "login"))
 	authCmd.AddCommand(newLoginCmd(deps))
@@ -318,7 +318,7 @@ func TestLoginJSONOutput(t *testing.T) {
 		pollInterval: time.Millisecond,
 	}
 
-	root := NewRootCmd("dev")
+	root := NewRootCmd("dev", "abc123", "2025-01-01")
 	authCmd := findSubCommand(root, "auth")
 	authCmd.RemoveCommand(findSubCommand(authCmd, "login"))
 	authCmd.AddCommand(newLoginCmd(deps))
@@ -370,7 +370,7 @@ func TestLoginEmailFallback(t *testing.T) {
 
 func TestAuthSubcommandRegistered(t *testing.T) {
 	resetViper()
-	root := NewRootCmd("dev")
+	root := NewRootCmd("dev", "abc123", "2025-01-01")
 	authCmd := findSubCommand(root, "auth")
 	if authCmd == nil {
 		t.Fatal("expected auth subcommand on root")

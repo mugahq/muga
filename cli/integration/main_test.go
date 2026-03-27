@@ -37,7 +37,9 @@ func buildCLI() (string, error) {
 	}
 
 	bin := filepath.Join(dir, "muga")
-	cmd := exec.Command("go", "build", "-ldflags", "-X main.version=integration-test", "-o", bin, "./cmd/muga")
+	cmd := exec.Command("go", "build",
+		"-ldflags", "-X main.version=integration-test -X main.commit=test-commit -X main.date=2025-01-01T00:00:00Z",
+		"-o", bin, "./cmd/muga")
 	cmd.Dir = filepath.Join("..", ".")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

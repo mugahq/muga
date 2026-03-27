@@ -1,5 +1,7 @@
 VERSION ?= dev
-LDFLAGS := -ldflags "-X main.version=$(VERSION)"
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+DATE    ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
 
 .PHONY: build lint test cover vet fmt clean integration
 
