@@ -82,7 +82,7 @@ func parseSubcommands(helpOutput string) []string {
 	for _, m := range matches {
 		name := m[1]
 		// Skip meta-commands.
-		if name == "help" || name == "completion" {
+		if name == "help" || name == "completion" || name == "version" {
 			continue
 		}
 		cmds = append(cmds, name)

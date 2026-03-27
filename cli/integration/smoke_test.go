@@ -32,6 +32,32 @@ func TestSmoke_UnknownCommand(t *testing.T) {
 	}
 }
 
+func TestSmoke_VersionCommand(t *testing.T) {
+	result := runCLI(t, nil, "version")
+	assertExitCode(t, result, 0)
+	assertStdoutContains(t, result, "integration-test")
+	assertStdoutContains(t, result, "test-commit")
+	assertStdoutContains(t, result, "2025-01-01T00:00:00Z")
+}
+
+func TestSmoke_CompletionBash(t *testing.T) {
+	result := runCLI(t, nil, "completion", "bash")
+	assertExitCode(t, result, 0)
+	assertStdoutContains(t, result, "bash")
+}
+
+func TestSmoke_CompletionZsh(t *testing.T) {
+	result := runCLI(t, nil, "completion", "zsh")
+	assertExitCode(t, result, 0)
+	assertStdoutContains(t, result, "zsh")
+}
+
+func TestSmoke_CompletionFish(t *testing.T) {
+	result := runCLI(t, nil, "completion", "fish")
+	assertExitCode(t, result, 0)
+	assertStdoutContains(t, result, "fish")
+}
+
 func TestSmoke_Healthz(t *testing.T) {
 	ts := newMockServer(t)
 

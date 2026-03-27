@@ -18,7 +18,7 @@ func resetViper() {
 
 func TestRootHelp(t *testing.T) {
 	resetViper()
-	cmd := NewRootCmd("test-version")
+	cmd := NewRootCmd("test-version", "abc123", "2025-01-01")
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetArgs([]string{"--help"})
@@ -35,7 +35,7 @@ func TestRootHelp(t *testing.T) {
 
 func TestRootVersion(t *testing.T) {
 	resetViper()
-	cmd := NewRootCmd("1.2.3")
+	cmd := NewRootCmd("1.2.3", "abc123", "2025-01-01")
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 	cmd.SetArgs([]string{"--version"})
@@ -55,7 +55,7 @@ func TestRootVersion(t *testing.T) {
 
 func TestGlobalFlagsRegistered(t *testing.T) {
 	resetViper()
-	cmd := NewRootCmd("dev")
+	cmd := NewRootCmd("dev", "abc123", "2025-01-01")
 
 	flags := []string{"json", "project", "no-color", "verbose"}
 	for _, name := range flags {
@@ -67,7 +67,7 @@ func TestGlobalFlagsRegistered(t *testing.T) {
 
 func TestProjectShortFlag(t *testing.T) {
 	resetViper()
-	cmd := NewRootCmd("dev")
+	cmd := NewRootCmd("dev", "abc123", "2025-01-01")
 
 	f := cmd.PersistentFlags().ShorthandLookup("p")
 	if f == nil {
@@ -82,7 +82,7 @@ func TestExecute(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	if err := Execute("dev"); err != nil {
+	if err := Execute("dev", "abc123", "2025-01-01"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -91,7 +91,7 @@ func TestPersistentPreRunSetsContext(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	cmd := NewRootCmd("dev")
+	cmd := NewRootCmd("dev", "abc123", "2025-01-01")
 
 	// Add a child command that checks the context for output opts.
 	var gotOpts *output.Opts
@@ -129,7 +129,7 @@ func TestProjectFlagPrecedence(t *testing.T) {
 	}
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	cmd := NewRootCmd("dev")
+	cmd := NewRootCmd("dev", "abc123", "2025-01-01")
 
 	var gotOpts *output.Opts
 	child := &cobra.Command{
@@ -167,7 +167,7 @@ func TestProjectFromConfig(t *testing.T) {
 	}
 	t.Setenv("XDG_CONFIG_HOME", dir)
 
-	cmd := NewRootCmd("dev")
+	cmd := NewRootCmd("dev", "abc123", "2025-01-01")
 
 	var gotOpts *output.Opts
 	child := &cobra.Command{

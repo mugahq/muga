@@ -11,7 +11,7 @@ import (
 )
 
 // NewRootCmd creates the root cobra command with all global flags.
-func NewRootCmd(version string) *cobra.Command {
+func NewRootCmd(version, commit, date string) *cobra.Command {
 	var outputOpts output.Opts
 
 	rootCmd := &cobra.Command{
@@ -51,11 +51,16 @@ func NewRootCmd(version string) *cobra.Command {
 	authCmd := newAuthCmd()
 	authCmd.AddCommand(newLoginCmd(nil))
 	rootCmd.AddCommand(authCmd)
+	rootCmd.AddCommand(newVersionCmd(VersionInfo{
+		Version: version,
+		Commit:  commit,
+		Date:    date,
+	}))
 
 	return rootCmd
 }
 
 // Execute runs the root command.
-func Execute(version string) error {
-	return NewRootCmd(version).Execute()
+func Execute(version, commit, date string) error {
+	return NewRootCmd(version, commit, date).Execute()
 }
