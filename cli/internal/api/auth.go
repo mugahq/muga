@@ -30,7 +30,7 @@ func (c *Client) RequestDeviceCode() (*DeviceCodeResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("requesting device code: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("requesting device code: unexpected status %d", resp.StatusCode)
@@ -50,7 +50,7 @@ func (c *Client) PollToken(deviceCode string) (*TokenResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("polling token: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusForbidden {
 		return nil, fmt.Errorf("polling token: unexpected status %d", resp.StatusCode)

@@ -16,7 +16,7 @@ func TestRequestDeviceCode(t *testing.T) {
 			t.Errorf("path = %s, want /auth/device", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(DeviceCodeResponse{
+		_ = json.NewEncoder(w).Encode(DeviceCodeResponse{
 			DeviceCode:      "dev123",
 			UserCode:        "ABCD-1234",
 			VerificationURI: "https://github.com/login/device",
@@ -64,7 +64,7 @@ func TestPollTokenSuccess(t *testing.T) {
 			t.Errorf("device_code = %q, want dev123", r.URL.Query().Get("device_code"))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(TokenResponse{
+		_ = json.NewEncoder(w).Encode(TokenResponse{
 			AccessToken: "tok_abc",
 			UserName:    "alice",
 			UserEmail:   "alice@example.com",
@@ -85,7 +85,7 @@ func TestPollTokenSuccess(t *testing.T) {
 func TestPollTokenPending(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(TokenResponse{
+		_ = json.NewEncoder(w).Encode(TokenResponse{
 			Error: "authorization_pending",
 		})
 	}))
@@ -144,7 +144,7 @@ func TestRequestDeviceCodeConnectionError(t *testing.T) {
 func TestRequestDeviceCodeInvalidJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("{invalid"))
+		_, _ = w.Write([]byte("{invalid"))
 	}))
 	defer srv.Close()
 
@@ -158,7 +158,7 @@ func TestRequestDeviceCodeInvalidJSON(t *testing.T) {
 func TestPollTokenInvalidJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("{invalid"))
+		_, _ = w.Write([]byte("{invalid"))
 	}))
 	defer srv.Close()
 
