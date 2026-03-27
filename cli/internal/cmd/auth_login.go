@@ -133,7 +133,7 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 		})
 	}
 
-	fmt.Fprintf(w, " ✓\n\nLogged in as %s\n", identity)
+	_, _ = fmt.Fprintf(w, " ✓\n\nLogged in as %s\n", identity)
 	return nil
 }
 
