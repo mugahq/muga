@@ -1,0 +1,1784 @@
+openapi: 3.1.0
+
+info:
+  title: Muga Management API
+  version: "1"
+  description: |
+    The Muga management API. Used by the CLI and dashboard to manage projects,
+    tokens, monitors, cron monitors, alert rules, and to query logs and errors.
+
+    Ingestion (traces, metrics, logs) is handled separately via OTLP endpoints
+    and is not part of this specification.
+  contact:
+    name: Muga
+    url: https://muga.sh
+
+servers:
+  - url: https://api.muga.sh/v1
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: Authentication (device flow, PKCE, GitHub Actions OIDC)
+  - name: projects
+    description: Project management
+  - name: tokens
+    description: API token management
+  - name: monitors
+    description: Uptime monitors
+  - name: crons
+    description: Cron job monitors
+  - name: alerts
+    description: Alert rules and history
+  - name: logs
+    description: Log and error querying
+  - name: status
+    description: Project status overview
+  - name: billing
+    description: Stripe billing sessions
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # Auth
+  # ---------------------------------------------------------------------------
+
+  /auth/device:
+    post:
+      operationId: initiateDeviceFlow
+      tags: [auth]
+      summary: Initiate GitHub device flow
+      description: |
+        Starts a GitHub OAuth device flow. Returns the codes the user must
+        enter at `verification_uri` to grant access.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Device flow initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceFlowResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/token:
+    post:
+      operationId: pollDeviceToken
+      tags: [auth]
+      summary: Poll for access token
+      description: |
+        Exchange a `device_code` for a Muga access token. Poll at the interval
+        returned by `/auth/device`. Returns `pending` while the user has not yet
+        approved the request.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollTokenRequest"
+      responses:
+        "200":
+          description: Token issued or still pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PollTokenResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/callback:
+    get:
+      operationId: oauthCallback
+      tags: [auth]
+      summary: GitHub OAuth callback (PKCE web flow)
+      description: |
+        Handles the OAuth callback from GitHub after user authorization.
+        Exchanges the authorization code (with PKCE code_verifier) for a GitHub
+        access token, validates identity, and returns Muga session tokens.
+        Used by the landing page "Sign in with GitHub" flow.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Authorization code from GitHub.
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: CSRF state parameter (must match the value sent in the authorization request).
+      responses:
+        "200":
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid or expired authorization code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/refresh:
+    post:
+      operationId: refreshToken
+      tags: [auth]
+      summary: Refresh access token
+      description: |
+        Exchange a valid refresh token for a new access token and refresh token.
+        Refresh tokens are single-use — each call returns a new refresh token
+        and invalidates the previous one (rotation). If a refresh token is used
+        twice, all sessions for that user are revoked (theft detection).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid, expired, or already-used refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: unauthorized
+                  message: "Refresh token is invalid or has been revoked"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/oidc:
+    post:
+      operationId: oidcTokenExchange
+      tags: [auth]
+      summary: Exchange GitHub Actions OIDC token for Muga access token
+      description: |
+        Accepts a GitHub Actions OIDC JWT and returns a Muga access token.
+        The JWT must have `aud: "https://api.muga.sh"` and be signed by
+        GitHub's OIDC provider (`https://token.actions.githubusercontent.com`).
+
+        Muga validates the JWT signature via GitHub's JWKS endpoint, extracts
+        the `repository_owner_id` claim, and maps it to a Muga account via
+        the `github_app_installations` table.
+
+        This flow is fully autonomous — no human interaction required at runtime.
+        Requires a one-time GitHub App installation on the account/org.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcTokenRequest"
+      responses:
+        "200":
+          description: OIDC token validated, Muga access token issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OidcTokenResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid, expired, or unrecognized OIDC token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: unauthorized
+                  message: "OIDC token validation failed: no matching GitHub App installation"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Projects
+  # ---------------------------------------------------------------------------
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects
+      description: Returns all projects the authenticated user has access to.
+      parameters:
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Paginated list of projects
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{id}:
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete project
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Project deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Tokens
+  # ---------------------------------------------------------------------------
+
+  /projects/{project_id}/tokens:
+    get:
+      operationId: listTokens
+      tags: [tokens]
+      summary: List tokens
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Paginated list of tokens
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Token"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      operationId: createToken
+      tags: [tokens]
+      summary: Create token
+      description: |
+        Creates a new API token for the project. The plaintext token value is
+        returned once in this response and cannot be retrieved again.
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTokenRequest"
+      responses:
+        "201":
+          description: Token created — plaintext returned once
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedToken"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TierLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /tokens/{id}:
+    delete:
+      operationId: revokeToken
+      tags: [tokens]
+      summary: Revoke token
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Token revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Monitors (uptime)
+  # ---------------------------------------------------------------------------
+
+  /projects/{project_id}/monitors:
+    get:
+      operationId: listMonitors
+      tags: [monitors]
+      summary: List uptime monitors
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Paginated list of monitors
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Monitor"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      operationId: createMonitor
+      tags: [monitors]
+      summary: Create uptime monitor
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMonitorRequest"
+      responses:
+        "201":
+          description: Monitor created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Monitor"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TierLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /monitors/{id}:
+    delete:
+      operationId: deleteMonitor
+      tags: [monitors]
+      summary: Delete uptime monitor
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Monitor deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Cron monitors
+  # ---------------------------------------------------------------------------
+
+  /projects/{project_id}/crons:
+    get:
+      operationId: listCronMonitors
+      tags: [crons]
+      summary: List cron monitors
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Paginated list of cron monitors
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/CronMonitor"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      operationId: createCronMonitor
+      tags: [crons]
+      summary: Create cron monitor
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCronMonitorRequest"
+      responses:
+        "201":
+          description: Cron monitor created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CronMonitor"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TierLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /crons/{id}:
+    delete:
+      operationId: deleteCronMonitor
+      tags: [crons]
+      summary: Delete cron monitor
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Cron monitor deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /crons/{id}/ping:
+    post:
+      operationId: pingCronMonitor
+      tags: [crons]
+      summary: Heartbeat ping
+      description: |
+        Records a successful execution heartbeat. No authentication is required —
+        the monitor `id` itself acts as the secret. Typically called at the end
+        of a cron job script.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "200":
+          description: Ping recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PingResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Alerts
+  # ---------------------------------------------------------------------------
+
+  /projects/{project_id}/alerts:
+    get:
+      operationId: listAlertRules
+      tags: [alerts]
+      summary: List alert rules
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: Paginated list of alert rules
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AlertRule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      operationId: createAlertRule
+      tags: [alerts]
+      summary: Create alert rule
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertRuleRequest"
+      responses:
+        "201":
+          description: Alert rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TierLimitExceeded"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{project_id}/alerts/history:
+    get:
+      operationId: listAlertHistory
+      tags: [alerts]
+      summary: Alert timeline
+      description: Returns the history of triggered alert events for the project.
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+        - name: since
+          in: query
+          description: ISO 8601 timestamp — return events at or after this time
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          description: ISO 8601 timestamp — return events before this time
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paginated alert history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AlertEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /alerts/{id}:
+    delete:
+      operationId: deleteAlertRule
+      tags: [alerts]
+      summary: Delete alert rule
+      parameters:
+        - $ref: "#/components/parameters/id"
+      responses:
+        "204":
+          description: Alert rule deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Logs
+  # ---------------------------------------------------------------------------
+
+  /projects/{project_id}/logs:
+    get:
+      operationId: queryLogs
+      tags: [logs]
+      summary: Query logs
+      description: |
+        Query structured log records. Ingestion is handled via OTLP; this
+        endpoint is read-only.
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+        - name: service
+          in: query
+          description: Filter by service name
+          schema:
+            type: string
+        - name: level
+          in: query
+          description: Minimum severity level
+          schema:
+            type: string
+            enum: [trace, debug, info, warn, error, fatal]
+        - name: since
+          in: query
+          description: ISO 8601 timestamp — return records at or after this time
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          description: ISO 8601 timestamp — return records before this time
+          schema:
+            type: string
+            format: date-time
+        - name: grep
+          in: query
+          description: Full-text search string applied to the log body
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated log records
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/LogRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{project_id}/errors:
+    get:
+      operationId: queryErrorGroups
+      tags: [logs]
+      summary: Query error groups
+      description: Returns deduplicated error groups (fingerprinted exceptions).
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - $ref: "#/components/parameters/cursor"
+        - $ref: "#/components/parameters/limit"
+        - name: service
+          in: query
+          description: Filter by service name
+          schema:
+            type: string
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: until
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paginated error groups
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ErrorGroup"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{project_id}/errors/{fingerprint}:
+    get:
+      operationId: getErrorGroup
+      tags: [logs]
+      summary: Error group details
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+        - name: fingerprint
+          in: path
+          required: true
+          description: Error group fingerprint hash
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Error group detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorGroupDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Status
+  # ---------------------------------------------------------------------------
+
+  /projects/{project_id}/status:
+    get:
+      operationId: getProjectStatus
+      tags: [status]
+      summary: Project status overview
+      description: Returns a high-level summary of monitor health, error counts, and log volume.
+      parameters:
+        - $ref: "#/components/parameters/project_id"
+      responses:
+        "200":
+          description: Project status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ---------------------------------------------------------------------------
+  # Billing
+  # ---------------------------------------------------------------------------
+
+  /billing/checkout:
+    post:
+      operationId: createCheckoutSession
+      tags: [billing]
+      summary: Create Stripe checkout session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "200":
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /billing/portal:
+    post:
+      operationId: createPortalSession
+      tags: [billing]
+      summary: Create Stripe customer portal session
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PortalRequest"
+      responses:
+        "200":
+          description: Portal session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingSessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+# =============================================================================
+# Components
+# =============================================================================
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: muga_xxx
+      description: Muga API token obtained via the device flow or created in the dashboard.
+
+  # ---------------------------------------------------------------------------
+  # Reusable parameters
+  # ---------------------------------------------------------------------------
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    project_id:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    cursor:
+      name: cursor
+      in: query
+      description: Opaque pagination cursor returned in the previous response.
+      schema:
+        type: string
+
+    limit:
+      name: limit
+      in: query
+      description: Maximum number of items to return (1–100, default 20).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  # ---------------------------------------------------------------------------
+  # Reusable responses
+  # ---------------------------------------------------------------------------
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: bad_request
+              message: "Invalid request body"
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: unauthorized
+              message: "Authentication required"
+
+    Forbidden:
+      description: Authenticated user does not have permission
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: forbidden
+              message: "You do not have access to this resource"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: not_found
+              message: "Resource not found"
+
+    Conflict:
+      description: Conflict with existing resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: conflict
+              message: "A project with this slug already exists"
+
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: rate_limited
+              message: "Rate limit exceeded, please slow down"
+
+    TierLimitExceeded:
+      description: Plan tier limit reached
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: tier_limit_exceeded
+              message: "Monitor limit reached for your current plan"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: internal_error
+              message: "An unexpected error occurred"
+
+  # ---------------------------------------------------------------------------
+  # Schemas
+  # ---------------------------------------------------------------------------
+
+  schemas:
+
+    # -- Error -----------------------------------------------------------------
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - bad_request
+                - unauthorized
+                - forbidden
+                - not_found
+                - conflict
+                - rate_limited
+                - tier_limit_exceeded
+                - internal_error
+            message:
+              type: string
+              description: Human-readable error description.
+
+    # -- Pagination ------------------------------------------------------------
+
+    PaginatedResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: {}
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    Pagination:
+      type: object
+      required: [has_more]
+      properties:
+        has_more:
+          type: boolean
+          description: Whether there are additional pages.
+        next_cursor:
+          type: string
+          nullable: true
+          description: Cursor to pass as `cursor` to fetch the next page. Null when `has_more` is false.
+
+    # -- Auth ------------------------------------------------------------------
+
+    DeviceFlowResponse:
+      type: object
+      required: [device_code, user_code, verification_uri, expires_in, interval]
+      properties:
+        device_code:
+          type: string
+          description: Opaque device code to use when polling `/auth/token`.
+        user_code:
+          type: string
+          description: Short code the user must enter at `verification_uri`.
+          example: "ABCD-1234"
+        verification_uri:
+          type: string
+          format: uri
+          description: URL the user must visit to approve the request.
+          example: "https://github.com/login/device"
+        expires_in:
+          type: integer
+          description: Seconds until the device code expires.
+          example: 900
+        interval:
+          type: integer
+          description: Recommended polling interval in seconds.
+          example: 5
+
+    PollTokenRequest:
+      type: object
+      required: [device_code]
+      properties:
+        device_code:
+          type: string
+          description: Device code returned by `/auth/device`.
+
+    PollTokenResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [pending, authorized]
+          description: "`authorized` when the user has approved the request."
+        access_token:
+          type: string
+          nullable: true
+          description: Muga access token. Only present when `status` is `authorized`. Expires in `expires_in` seconds.
+          example: "muga_live_abc123"
+        refresh_token:
+          type: string
+          nullable: true
+          description: Muga refresh token. Only present when `status` is `authorized`. Single-use, 30-day lifetime.
+          example: "mugar_live_xyz789"
+        token_type:
+          type: string
+          nullable: true
+          example: "Bearer"
+        expires_in:
+          type: integer
+          nullable: true
+          description: Access token lifetime in seconds.
+          example: 86400
+        user:
+          nullable: true
+          $ref: "#/components/schemas/AuthUser"
+
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          description: |
+            The refresh token from a previous auth or refresh response.
+            Single-use — a new refresh token is returned with each call.
+          example: "mugar_live_xyz789"
+
+    AuthResponse:
+      type: object
+      description: |
+        Returned by OAuth callback and refresh endpoints.
+        Contains a short-lived access token and a single-use refresh token.
+      required: [access_token, refresh_token, token_type, expires_in, user]
+      properties:
+        access_token:
+          type: string
+          description: "Muga access token (24h lifetime). Use as `Authorization: Bearer <token>`."
+          example: "muga_live_abc123xyz"
+        refresh_token:
+          type: string
+          description: Muga refresh token (30d lifetime, single-use). Use with `POST /auth/refresh`.
+          example: "mugar_live_xyz789abc"
+        token_type:
+          type: string
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds.
+          example: 86400
+        user:
+          $ref: "#/components/schemas/AuthUser"
+
+    AuthUser:
+      type: object
+      required: [id, email, name, tier]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        tier:
+          type: string
+          enum: [free, pro, team]
+        is_new:
+          type: boolean
+          description: True if the account was just created (first login).
+
+    OidcTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: |
+            GitHub Actions OIDC JWT. Obtained in a workflow via
+            `$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.muga.sh`.
+          example: "eyJhbGciOiJSUzI1NiIs..."
+
+    OidcTokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token:
+          type: string
+          description: Muga access token (24h lifetime). No refresh token — use OIDC to re-authenticate.
+          example: "muga_live_abc123xyz"
+        token_type:
+          type: string
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Access token lifetime in seconds.
+          example: 86400
+        user:
+          $ref: "#/components/schemas/AuthUser"
+
+    # -- Projects --------------------------------------------------------------
+
+    Project:
+      type: object
+      required: [id, name, slug, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "My API"
+        slug:
+          type: string
+          description: URL-safe identifier, unique per user.
+          example: "my-api"
+        created_at:
+          type: string
+          format: date-time
+
+    CreateProjectRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "My API"
+        slug:
+          type: string
+          pattern: "^[a-z0-9-]+$"
+          minLength: 1
+          maxLength: 60
+          example: "my-api"
+
+    # -- Tokens ----------------------------------------------------------------
+
+    Token:
+      type: object
+      required: [id, project_id, name, prefix, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Production"
+        prefix:
+          type: string
+          description: First characters of the token, safe to display.
+          example: "muga_live_ab"
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateTokenRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Production"
+
+    CreatedToken:
+      allOf:
+        - $ref: "#/components/schemas/Token"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: |
+                Full plaintext token value. Shown only once — store it securely.
+              example: "muga_live_abc123xyz"
+
+    # -- Monitors (uptime) -----------------------------------------------------
+
+    Monitor:
+      type: object
+      required: [id, project_id, name, url, interval_seconds, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Homepage"
+        url:
+          type: string
+          format: uri
+          example: "https://example.com/health"
+        interval_seconds:
+          type: integer
+          description: How often the monitor polls the URL.
+          example: 60
+        status:
+          type: string
+          enum: [up, down, unknown]
+        last_checked_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreateMonitorRequest:
+      type: object
+      required: [name, url, interval_seconds]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Homepage"
+        url:
+          type: string
+          format: uri
+          example: "https://example.com/health"
+        interval_seconds:
+          type: integer
+          minimum: 30
+          maximum: 86400
+          example: 60
+
+    # -- Cron monitors ---------------------------------------------------------
+
+    CronMonitor:
+      type: object
+      required: [id, project_id, name, expected_interval_seconds, grace_seconds, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Nightly backup"
+        expected_interval_seconds:
+          type: integer
+          description: How often the job is expected to run.
+          example: 86400
+        grace_seconds:
+          type: integer
+          description: Extra time allowed beyond the expected interval before alerting.
+          example: 300
+        status:
+          type: string
+          enum: [healthy, late, missed, unknown]
+        last_ping_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CreateCronMonitorRequest:
+      type: object
+      required: [name, expected_interval_seconds, grace_seconds]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Nightly backup"
+        expected_interval_seconds:
+          type: integer
+          minimum: 60
+          example: 86400
+        grace_seconds:
+          type: integer
+          minimum: 0
+          example: 300
+
+    PingResponse:
+      type: object
+      required: [ok, pinged_at]
+      properties:
+        ok:
+          type: boolean
+          example: true
+        pinged_at:
+          type: string
+          format: date-time
+
+    # -- Alerts ----------------------------------------------------------------
+
+    AlertRule:
+      type: object
+      required: [id, project_id, name, type, condition, channels, enabled, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "High error rate"
+        type:
+          type: string
+          enum: [monitor_down, error_spike, cron_missed]
+          description: Kind of event that triggers this rule.
+        condition:
+          type: object
+          description: Rule-type-specific condition parameters.
+          additionalProperties: true
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertChannel"
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    AlertChannel:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [email, webhook, slack, discord]
+        destination:
+          type: string
+          description: Email address, Slack webhook URL, PagerDuty routing key, or webhook URL.
+          example: "https://hooks.slack.com/services/xxx/yyy/zzz"
+
+    CreateAlertRuleRequest:
+      type: object
+      required: [name, type, condition, channels]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          type: string
+          enum: [monitor_down, error_spike, cron_missed]
+        condition:
+          type: object
+          additionalProperties: true
+        channels:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/AlertChannel"
+        enabled:
+          type: boolean
+          default: true
+
+    AlertEvent:
+      type: object
+      required: [id, project_id, rule_id, rule_name, fired_at, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        rule_id:
+          type: string
+          format: uuid
+        rule_name:
+          type: string
+        fired_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [firing, resolved]
+        details:
+          type: object
+          additionalProperties: true
+          description: Rule-type-specific context about why the alert fired.
+
+    # -- Logs ------------------------------------------------------------------
+
+    LogRecord:
+      type: object
+      required: [id, project_id, service, level, body, timestamp]
+      properties:
+        id:
+          type: string
+          description: Unique record identifier.
+        project_id:
+          type: string
+          format: uuid
+        service:
+          type: string
+          example: "api-server"
+        level:
+          type: string
+          enum: [trace, debug, info, warn, error, fatal]
+        body:
+          type: string
+          description: Log message body.
+        timestamp:
+          type: string
+          format: date-time
+        trace_id:
+          type: string
+          nullable: true
+          example: "4bf92f3577b34da6a3ce929d0e0e4736"
+        span_id:
+          type: string
+          nullable: true
+        attributes:
+          type: object
+          additionalProperties: true
+          description: Structured key-value pairs attached to the log record.
+
+    ErrorGroup:
+      type: object
+      required: [fingerprint, project_id, title, service, count, first_seen_at, last_seen_at]
+      properties:
+        fingerprint:
+          type: string
+          description: Stable hash identifying this error group.
+          example: "a1b2c3d4e5f6"
+        project_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: Short description derived from the exception type and message.
+          example: "NullPointerException in UserService.getById"
+        service:
+          type: string
+          example: "api-server"
+        count:
+          type: integer
+          description: Number of occurrences in the queried time window.
+          example: 42
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+
+    ErrorGroupDetail:
+      allOf:
+        - $ref: "#/components/schemas/ErrorGroup"
+        - type: object
+          properties:
+            stack_trace:
+              type: string
+              nullable: true
+              description: Representative stack trace for this error group.
+            recent_occurrences:
+              type: array
+              description: Up to 10 most recent log records for this group.
+              items:
+                $ref: "#/components/schemas/LogRecord"
+            chart:
+              type: array
+              description: Occurrence counts bucketed by hour (most recent first).
+              items:
+                $ref: "#/components/schemas/ChartBucket"
+
+    ChartBucket:
+      type: object
+      required: [timestamp, count]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Start of the bucket interval.
+        count:
+          type: integer
+
+    # -- Status ----------------------------------------------------------------
+
+    ProjectStatus:
+      type: object
+      required: [project_id, monitors, crons, errors, logs]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        monitors:
+          type: object
+          required: [total, up, down, unknown]
+          properties:
+            total:
+              type: integer
+            up:
+              type: integer
+            down:
+              type: integer
+            unknown:
+              type: integer
+        crons:
+          type: object
+          required: [total, healthy, late, missed, unknown]
+          properties:
+            total:
+              type: integer
+            healthy:
+              type: integer
+            late:
+              type: integer
+            missed:
+              type: integer
+            unknown:
+              type: integer
+        errors:
+          type: object
+          required: [total_24h, new_24h]
+          properties:
+            total_24h:
+              type: integer
+              description: Total error occurrences in the last 24 hours.
+            new_24h:
+              type: integer
+              description: Error groups seen for the first time in the last 24 hours.
+        logs:
+          type: object
+          required: [volume_24h]
+          properties:
+            volume_24h:
+              type: integer
+              description: Total log records ingested in the last 24 hours.
+
+    # -- Billing ---------------------------------------------------------------
+
+    CheckoutRequest:
+      type: object
+      required: [plan]
+      properties:
+        plan:
+          type: string
+          description: Plan identifier to subscribe to.
+          example: "pro"
+        success_url:
+          type: string
+          format: uri
+          description: URL Stripe redirects to after a successful checkout.
+        cancel_url:
+          type: string
+          format: uri
+          description: URL Stripe redirects to if the user cancels.
+
+    PortalRequest:
+      type: object
+      properties:
+        return_url:
+          type: string
+          format: uri
+          description: URL to return the user to after the portal session.
+
+    BillingSessionResponse:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Redirect URL for the Stripe-hosted session.
+          example: "https://checkout.stripe.com/pay/cs_live_xxx"
