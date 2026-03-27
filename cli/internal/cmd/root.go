@@ -47,8 +47,6 @@ func NewRootCmd(version string) *cobra.Command {
 	flags.BoolVar(&outputOpts.NoColor, "no-color", false, "Disable colored output")
 	flags.BoolVarP(&outputOpts.Verbose, "verbose", "v", false, "Enable verbose output")
 
-	_ = viper.BindEnv("project", "MUGA_PROJECT")
-
 	// Register subcommands.
 	authCmd := newAuthCmd()
 	authCmd.AddCommand(newLoginCmd(nil))
