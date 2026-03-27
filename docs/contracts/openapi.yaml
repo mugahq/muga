@@ -1190,8 +1190,11 @@ components:
       properties:
         status:
           type: string
-          enum: [pending, authorized]
-          description: "`authorized` when the user has approved the request."
+          enum: [pending, slow_down, authorized]
+          description: >-
+            `pending` while waiting for user approval, `slow_down` when the
+            client is polling too fast (must increase interval by 5 s per
+            RFC 8628 §3.5), `authorized` when the user has approved the request.
         access_token:
           type: string
           nullable: true
