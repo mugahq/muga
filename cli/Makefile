@@ -1,7 +1,7 @@
 VERSION ?= dev
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
-.PHONY: build lint test cover vet fmt clean
+.PHONY: build lint test cover vet fmt clean integration
 
 build:  ## Build the muga binary
 	go build $(LDFLAGS) -o bin/muga ./cmd/muga
@@ -22,6 +22,9 @@ cover:  ## Run tests with coverage (90% threshold)
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	@go tool cover -func=coverage.out | grep total | awk '{print $$3}' | sed 's/%//' | \
 		awk '{if ($$1 < 90) {print "FAIL: coverage " $$1 "% < 90%"; exit 1} else {print "OK: coverage " $$1 "%"}}'
+
+integration:  ## Run integration tests (CLI against mock API server)
+	go test -tags integration -count=1 -timeout 60s -v ./integration/
 
 clean:  ## Remove build artifacts
 	rm -rf bin/ coverage.out
