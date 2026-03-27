@@ -5,7 +5,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/mugahq/muga/api/models"
 )
+
+func ptr[T any](v T) *T { return &v }
 
 func TestRequestDeviceCode(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -16,10 +20,10 @@ func TestRequestDeviceCode(t *testing.T) {
 			t.Errorf("path = %s, want /auth/device", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(DeviceCodeResponse{
+		_ = json.NewEncoder(w).Encode(models.DeviceFlowResponse{
 			DeviceCode:      "dev123",
 			UserCode:        "ABCD-1234",
-			VerificationURI: "https://github.com/login/device",
+			VerificationUri: "https://github.com/login/device",
 			ExpiresIn:       900,
 			Interval:        5,
 		})
@@ -61,7 +65,7 @@ func TestPollTokenSuccess(t *testing.T) {
 			t.Errorf("path = %s, want /auth/token", r.URL.Path)
 		}
 
-		var req pollTokenRequest
+		var req models.PollTokenRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Fatalf("decoding request body: %v", err)
 		}
@@ -70,10 +74,10 @@ func TestPollTokenSuccess(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(TokenResponse{
-			Status:      "authorized",
-			AccessToken: "tok_abc",
-			User:        &TokenUser{Name: "alice", Email: "alice@example.com"},
+		_ = json.NewEncoder(w).Encode(models.PollTokenResponse{
+			Status:      models.Authorized,
+			AccessToken: ptr("tok_abc"),
+			User:        &models.AuthUser{Name: "alice", Email: "alice@example.com"},
 		})
 	}))
 	defer srv.Close()
@@ -83,16 +87,16 @@ func TestPollTokenSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.AccessToken != "tok_abc" {
-		t.Errorf("access_token = %q, want tok_abc", resp.AccessToken)
+	if resp.AccessToken == nil || *resp.AccessToken != "tok_abc" {
+		t.Errorf("access_token = %v, want tok_abc", resp.AccessToken)
 	}
 }
 
 func TestPollTokenPending(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(TokenResponse{
-			Status: "pending",
+		_ = json.NewEncoder(w).Encode(models.PollTokenResponse{
+			Status: models.Pending,
 		})
 	}))
 	defer srv.Close()
@@ -102,7 +106,7 @@ func TestPollTokenPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.Status != "pending" {
+	if resp.Status != models.Pending {
 		t.Errorf("status = %q, want pending", resp.Status)
 	}
 }
