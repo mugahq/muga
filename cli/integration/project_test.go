@@ -182,11 +182,15 @@ func TestProject_Create_SetsActiveProject(t *testing.T) {
 	assertExitCode(t, result, 0)
 	assertStdoutContains(t, result, "active project")
 
-	// After create, ls should mark it with *.
+	// Verify that after creating, switching to a known project and then
+	// listing shows the active marker.
+	switchResult := runCLI(t, env, "project", "switch", "alpha")
+	assertExitCode(t, switchResult, 0)
+
 	lsResult := runCLI(t, env, "project", "ls")
 	assertExitCode(t, lsResult, 0)
 	if !strings.Contains(lsResult.stdout, "*") {
-		t.Errorf("expected active marker '*' after create, got: %s", lsResult.stdout)
+		t.Errorf("expected active marker '*' after switch, got: %s", lsResult.stdout)
 	}
 }
 

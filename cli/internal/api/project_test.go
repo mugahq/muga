@@ -75,7 +75,7 @@ func TestCheckResponseSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := checkResponse(resp); err != nil {
 		t.Errorf("unexpected error for 200: %v", err)
@@ -99,7 +99,7 @@ func TestCheckResponseAPIError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	gotErr := checkResponse(resp)
 	if gotErr == nil {
@@ -128,7 +128,7 @@ func TestCheckResponseUnknownError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	gotErr := checkResponse(resp)
 	if gotErr == nil {
