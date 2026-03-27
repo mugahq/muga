@@ -1,0 +1,44 @@
+name: Contract Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/contracts/**"
+      - "tools/contracts-check.sh"
+      - ".github/workflows/contracts.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/contracts/**"
+      - "tools/contracts-check.sh"
+      - ".github/workflows/contracts.yml"
+
+jobs:
+  validate:
+    name: Validate contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check contract files exist
+        id: check-files
+        run: |
+          if [ ! -f "docs/contracts/openapi.yaml" ]; then
+            echo "::warning::No contract files found yet — skipping validation"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate OpenAPI spec
+        if: steps.check-files.outputs.skip != 'true'
+        run: |
+          npm install -g @redocly/cli
+          redocly lint docs/contracts/openapi.yaml --skip-rule no-unused-components
+
+      - name: Run contract checks
+        if: steps.check-files.outputs.skip != 'true' && hashFiles('tools/contracts-check.sh') != ''
+        run: |
+          chmod +x tools/contracts-check.sh
+          ./tools/contracts-check.sh

@@ -1,0 +1,17 @@
+# Go
+cli/bin/
+cli/coverage.out
+cli/coverage-filtered.out
+cli/muga
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+coverage.xml
