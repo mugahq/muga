@@ -1145,8 +1145,7 @@ components:
           type: boolean
           description: Whether there are additional pages.
         next_cursor:
-          type: string
-          nullable: true
+          type: ["string", "null"]
           description: Cursor to pass as `cursor` to fetch the next page. Null when `has_more` is false.
 
     # -- Auth ------------------------------------------------------------------
@@ -1193,27 +1192,24 @@ components:
           enum: [pending, authorized]
           description: "`authorized` when the user has approved the request."
         access_token:
-          type: string
-          nullable: true
+          type: ["string", "null"]
           description: Muga access token. Only present when `status` is `authorized`. Expires in `expires_in` seconds.
           example: "muga_live_abc123"
         refresh_token:
-          type: string
-          nullable: true
+          type: ["string", "null"]
           description: Muga refresh token. Only present when `status` is `authorized`. Single-use, 30-day lifetime.
           example: "mugar_live_xyz789"
         token_type:
-          type: string
-          nullable: true
+          type: ["string", "null"]
           example: "Bearer"
         expires_in:
-          type: integer
-          nullable: true
+          type: ["integer", "null"]
           description: Access token lifetime in seconds.
           example: 86400
         user:
-          nullable: true
-          $ref: "#/components/schemas/AuthUser"
+          oneOf:
+            - $ref: "#/components/schemas/AuthUser"
+            - type: "null"
 
     RefreshTokenRequest:
       type: object
@@ -1357,9 +1353,8 @@ components:
           type: string
           format: date-time
         last_used_at:
-          type: string
+          type: ["string", "null"]
           format: date-time
-          nullable: true
 
     CreateTokenRequest:
       type: object
@@ -1410,9 +1405,8 @@ components:
           type: string
           enum: [up, down, unknown]
         last_checked_at:
-          type: string
+          type: ["string", "null"]
           format: date-time
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -1463,9 +1457,8 @@ components:
           type: string
           enum: [healthy, late, missed, unknown]
         last_ping_at:
-          type: string
+          type: ["string", "null"]
           format: date-time
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -1586,9 +1579,8 @@ components:
           type: string
           format: date-time
         resolved_at:
-          type: string
+          type: ["string", "null"]
           format: date-time
-          nullable: true
         status:
           type: string
           enum: [firing, resolved]
@@ -1622,12 +1614,10 @@ components:
           type: string
           format: date-time
         trace_id:
-          type: string
-          nullable: true
+          type: ["string", "null"]
           example: "4bf92f3577b34da6a3ce929d0e0e4736"
         span_id:
-          type: string
-          nullable: true
+          type: ["string", "null"]
         attributes:
           type: object
           additionalProperties: true
@@ -1668,8 +1658,7 @@ components:
         - type: object
           properties:
             stack_trace:
-              type: string
-              nullable: true
+              type: ["string", "null"]
               description: Representative stack trace for this error group.
             recent_occurrences:
               type: array
