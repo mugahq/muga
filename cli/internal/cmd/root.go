@@ -32,7 +32,9 @@ func NewRootCmd(version string) *cobra.Command {
 			}
 
 			outputOpts.DetectTTY()
-			cmd.SetContext(output.WithOpts(cmd.Context(), &outputOpts))
+			ctx := output.WithOpts(cmd.Context(), &outputOpts)
+			ctx = config.WithConfig(ctx, cfg)
+			cmd.SetContext(ctx)
 			return nil
 		},
 		SilenceUsage:  true,
@@ -46,6 +48,11 @@ func NewRootCmd(version string) *cobra.Command {
 	flags.BoolVarP(&outputOpts.Verbose, "verbose", "v", false, "Enable verbose output")
 
 	_ = viper.BindEnv("project", "MUGA_PROJECT")
+
+	// Register subcommands.
+	authCmd := newAuthCmd()
+	authCmd.AddCommand(newLoginCmd(nil))
+	rootCmd.AddCommand(authCmd)
 
 	return rootCmd
 }
