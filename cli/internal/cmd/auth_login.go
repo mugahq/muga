@@ -17,10 +17,11 @@ import (
 	"github.com/mugahq/muga/cli/internal/output"
 )
 
-const (
-	defaultPollInterval = 5 * time.Second
-	slowDownIncrement   = 5 * time.Second
-)
+const defaultPollInterval = 5 * time.Second
+
+// slowDownIncrement is the amount added to the polling interval on each
+// slow_down response, per RFC 8628 §3.5. It is a var so tests can override it.
+var slowDownIncrement = 5 * time.Second
 
 // loginDeps holds injectable dependencies for the login command.
 type loginDeps struct {

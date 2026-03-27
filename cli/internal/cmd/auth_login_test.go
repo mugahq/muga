@@ -484,6 +484,88 @@ func TestPollForTokenContextCancelled(t *testing.T) {
 	}
 }
 
+func TestPollForTokenSlowDown(t *testing.T) {
+	origIncrement := slowDownIncrement
+	slowDownIncrement = time.Millisecond
+	t.Cleanup(func() { slowDownIncrement = origIncrement })
+
+	client := &sequenceClient{
+		responses: []*api.TokenResponse{
+			{Error: "slow_down"},
+			{AccessToken: "tok_ok", UserName: "Alice"},
+		},
+	}
+
+	ctx := context.Background()
+	token, err := pollForToken(ctx, client, "dev123", time.Millisecond)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token.AccessToken != "tok_ok" {
+		t.Errorf("access_token = %q, want tok_ok", token.AccessToken)
+	}
+	if client.calls != 2 {
+		t.Errorf("calls = %d, want 2", client.calls)
+	}
+}
+
+func TestPollForTokenSlowDownStacks(t *testing.T) {
+	origIncrement := slowDownIncrement
+	slowDownIncrement = time.Millisecond
+	t.Cleanup(func() { slowDownIncrement = origIncrement })
+
+	// Multiple slow_down responses should stack: each adds the increment to the interval.
+	client := &sequenceClient{
+		responses: []*api.TokenResponse{
+			{Error: "slow_down"},
+			{Error: "slow_down"},
+			{Error: "slow_down"},
+			{AccessToken: "tok_stacked", UserName: "Bob"},
+		},
+	}
+
+	ctx := context.Background()
+	token, err := pollForToken(ctx, client, "dev123", time.Millisecond)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token.AccessToken != "tok_stacked" {
+		t.Errorf("access_token = %q, want tok_stacked", token.AccessToken)
+	}
+	if client.calls != 4 {
+		t.Errorf("calls = %d, want 4 (3 slow_down + 1 success)", client.calls)
+	}
+}
+
+func TestPollForTokenSlowDownThenPending(t *testing.T) {
+	origIncrement := slowDownIncrement
+	slowDownIncrement = time.Millisecond
+	t.Cleanup(func() { slowDownIncrement = origIncrement })
+
+	// After a slow_down, subsequent pending polls should continue with the
+	// increased interval and eventually succeed.
+	client := &sequenceClient{
+		responses: []*api.TokenResponse{
+			{Error: "authorization_pending"},
+			{Error: "slow_down"},
+			{Error: "authorization_pending"},
+			{AccessToken: "tok_mixed", UserName: "Carol"},
+		},
+	}
+
+	ctx := context.Background()
+	token, err := pollForToken(ctx, client, "dev123", time.Millisecond)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if token.AccessToken != "tok_mixed" {
+		t.Errorf("access_token = %q, want tok_mixed", token.AccessToken)
+	}
+	if client.calls != 4 {
+		t.Errorf("calls = %d, want 4", client.calls)
+	}
+}
+
 func TestPollForTokenUnknownError(t *testing.T) {
 	client := &mockAPIClient{
 		tokenResp: &api.TokenResponse{Error: "access_denied"},
