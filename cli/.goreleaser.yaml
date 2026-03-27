@@ -38,7 +38,7 @@ changelog:
       - '^docs'
       - '^test'
 
-homebrew_casks:
+brews:
   - name: muga
     repository:
       owner: mugahq
