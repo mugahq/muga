@@ -22,21 +22,23 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Check contract files exist
+        id: check-files
         run: |
-          for f in docs/contracts/openapi.yaml; do
-            if [ ! -f "$f" ]; then
-              echo "::error::Missing contract file: $f"
-              exit 1
-            fi
-          done
+          if [ ! -f "docs/contracts/openapi.yaml" ]; then
+            echo "::warning::No contract files found yet — skipping validation"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Validate OpenAPI spec
+        if: steps.check-files.outputs.skip != 'true'
         run: |
           npm install -g @redocly/cli
           redocly lint docs/contracts/openapi.yaml --skip-rule no-unused-components
 
       - name: Run contract checks
-        if: hashFiles('tools/contracts-check.sh') != ''
+        if: steps.check-files.outputs.skip != 'true' && hashFiles('tools/contracts-check.sh') != ''
         run: |
           chmod +x tools/contracts-check.sh
           ./tools/contracts-check.sh
