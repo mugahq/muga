@@ -51,6 +51,13 @@ func TestCommandUnsupported(t *testing.T) {
 	}
 }
 
+func TestOpenDisabledByEnv(t *testing.T) {
+	t.Setenv("BROWSER", "")
+	if err := Open("https://example.com"); err != nil {
+		t.Fatalf("expected no error when BROWSER is empty, got: %v", err)
+	}
+}
+
 func TestOpenOnCurrentPlatform(t *testing.T) {
 	switch runtime.GOOS {
 	case "darwin", "linux", "windows":
