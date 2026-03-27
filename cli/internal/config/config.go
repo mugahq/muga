@@ -27,6 +27,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("api_url", defaultAPIURL)
 	viper.SetDefault("project", "")
 
+	_ = viper.BindEnv("api_url", "MUGA_API_URL")
+	_ = viper.BindEnv("project", "MUGA_PROJECT")
+
 	viper.SetConfigName(configFile)
 	viper.SetConfigType(configType)
 	viper.AddConfigPath(configPath())

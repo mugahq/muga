@@ -67,7 +67,7 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	}
 	if existing != nil {
 		if !confirmReauth(cmd, opts, deps.stdin) {
-			fmt.Fprintln(cmd.OutOrStdout(), "Login cancelled.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Login cancelled.")
 			return nil
 		}
 	}
@@ -81,11 +81,11 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	w := cmd.OutOrStdout()
 
 	// Step 2: Display code and open browser.
-	fmt.Fprintln(w, "\nOpening browser to authenticate with GitHub...")
-	fmt.Fprintf(w, "\n  Your code: %s\n", device.UserCode)
+	_, _ = fmt.Fprintln(w, "\nOpening browser to authenticate with GitHub...")
+	_, _ = fmt.Fprintf(w, "\n  Your code: %s\n", device.UserCode)
 
 	if err := deps.openBrowser(device.VerificationURI); err != nil {
-		fmt.Fprintf(w, "\n  If the browser didn't open, visit:\n  %s\n", device.VerificationURI)
+		_, _ = fmt.Fprintf(w, "\n  If the browser didn't open, visit:\n  %s\n", device.VerificationURI)
 	}
 
 	// Step 3: Poll for token.
@@ -97,7 +97,7 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 		interval = defaultPollInterval
 	}
 
-	fmt.Fprintf(w, "\nWaiting for authorization...")
+	_, _ = fmt.Fprintf(w, "\nWaiting for authorization...")
 
 	token, err := pollForToken(ctx, deps.apiClient, device.DeviceCode, interval)
 	if err != nil {
@@ -172,7 +172,7 @@ func confirmReauth(cmd *cobra.Command, opts *output.Opts, reader *bufio.Reader) 
 		return false
 	}
 
-	fmt.Fprint(cmd.OutOrStdout(), "You are already logged in. Re-authenticate? [y/N] ")
+	_, _ = fmt.Fprint(cmd.OutOrStdout(), "You are already logged in. Re-authenticate? [y/N] ")
 
 	line, _ := reader.ReadString('\n')
 	answer := strings.TrimSpace(strings.ToLower(line))
