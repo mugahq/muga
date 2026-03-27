@@ -1,0 +1,53 @@
+version: 2
+
+builds:
+  - main: ./cmd/muga
+    binary: muga
+    ldflags:
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - ../LICENSE
+      - ../README.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+release:
+  github:
+    owner: mugahq
+    name: muga
+  prerelease: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^chore'
+      - '^docs'
+      - '^test'
+
+brews:
+  - name: muga
+    repository:
+      owner: mugahq
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://muga.sh
+    description: "Muga CLI — observability for your services"
+    install: bin.install "muga"
+    test: system "#{bin}/muga --version"
