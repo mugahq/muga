@@ -60,14 +60,20 @@ func TestPollTokenSuccess(t *testing.T) {
 		if r.URL.Path != "/auth/token" {
 			t.Errorf("path = %s, want /auth/token", r.URL.Path)
 		}
-		if r.URL.Query().Get("device_code") != "dev123" {
-			t.Errorf("device_code = %q, want dev123", r.URL.Query().Get("device_code"))
+
+		var req pollTokenRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("decoding request body: %v", err)
 		}
+		if req.DeviceCode != "dev123" {
+			t.Errorf("device_code = %q, want dev123", req.DeviceCode)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(TokenResponse{
+			Status:      "authorized",
 			AccessToken: "tok_abc",
-			UserName:    "alice",
-			UserEmail:   "alice@example.com",
+			User:        &TokenUser{Name: "alice", Email: "alice@example.com"},
 		})
 	}))
 	defer srv.Close()
@@ -84,9 +90,9 @@ func TestPollTokenSuccess(t *testing.T) {
 
 func TestPollTokenPending(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
+		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(TokenResponse{
-			Error: "authorization_pending",
+			Status: "pending",
 		})
 	}))
 	defer srv.Close()
@@ -96,8 +102,8 @@ func TestPollTokenPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if resp.Error != "authorization_pending" {
-		t.Errorf("error = %q, want authorization_pending", resp.Error)
+	if resp.Status != "pending" {
+		t.Errorf("status = %q, want pending", resp.Status)
 	}
 }
 

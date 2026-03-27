@@ -109,8 +109,10 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	cred := &auth.Credential{
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
-		UserName:     token.UserName,
-		UserEmail:    token.UserEmail,
+	}
+	if token.User != nil {
+		cred.UserName = token.User.Name
+		cred.UserEmail = token.User.Email
 	}
 	if token.ExpiresIn > 0 {
 		cred.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
@@ -121,9 +123,9 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	}
 
 	// Step 5: Success message.
-	identity := token.UserName
+	identity := cred.UserName
 	if identity == "" {
-		identity = token.UserEmail
+		identity = cred.UserEmail
 	}
 
 	if opts.JSON {
@@ -151,10 +153,10 @@ func pollForToken(ctx context.Context, client deviceFlowClient, deviceCode strin
 				return nil, fmt.Errorf("polling for authorization: %w", err)
 			}
 
-			switch token.Error {
-			case "":
+			switch token.Status {
+			case "authorized":
 				return token, nil
-			case "authorization_pending":
+			case "pending":
 				continue
 			case "slow_down":
 				interval += slowDownIncrement
@@ -162,7 +164,7 @@ func pollForToken(ctx context.Context, client deviceFlowClient, deviceCode strin
 			case "expired_token":
 				return nil, fmt.Errorf("device code expired — please run `muga auth login` again")
 			default:
-				return nil, fmt.Errorf("authorization failed: %s", token.Error)
+				return nil, fmt.Errorf("authorization failed: %s", token.Status)
 			}
 		}
 	}
