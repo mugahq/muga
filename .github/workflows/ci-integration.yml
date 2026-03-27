@@ -1,0 +1,31 @@
+name: CI – Integration Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - ".github/workflows/ci-integration.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - ".github/workflows/ci-integration.yml"
+
+defaults:
+  run:
+    working-directory: cli
+
+jobs:
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+
+      - name: Run integration tests
+        run: go test -tags integration -count=1 -timeout 60s -v ./integration/

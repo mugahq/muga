@@ -2,13 +2,20 @@ package browser
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 )
 
 // Open opens the given URL in the user's default browser.
-// Returns an error if the browser could not be launched.
+//
+// If the BROWSER environment variable is set to an empty string, the browser
+// is not opened. This follows the convention used by gh, npm, and other CLI
+// tools to allow headless / CI usage.
 func Open(url string) error {
+	if val, ok := os.LookupEnv("BROWSER"); ok && val == "" {
+		return nil
+	}
 	cmd, args, err := command(runtime.GOOS, url)
 	if err != nil {
 		return err
