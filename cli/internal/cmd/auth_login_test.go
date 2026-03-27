@@ -10,10 +10,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mugahq/muga/cli/internal/api"
+	"github.com/mugahq/muga/api/models"
 	"github.com/mugahq/muga/cli/internal/auth"
 	"github.com/mugahq/muga/cli/internal/output"
 )
+
+// --- helpers ---
+
+func ptr[T any](v T) *T { return &v }
 
 // --- mocks ---
 
@@ -34,18 +38,18 @@ func (m *mockCredStore) Save(c *auth.Credential) error {
 }
 
 type mockAPIClient struct {
-	deviceResp *api.DeviceCodeResponse
+	deviceResp *models.DeviceFlowResponse
 	deviceErr  error
-	tokenResp  *api.TokenResponse
+	tokenResp  *models.PollTokenResponse
 	tokenErr   error
 	pollCount  int
 }
 
-func (m *mockAPIClient) RequestDeviceCode() (*api.DeviceCodeResponse, error) {
+func (m *mockAPIClient) RequestDeviceCode() (*models.DeviceFlowResponse, error) {
 	return m.deviceResp, m.deviceErr
 }
 
-func (m *mockAPIClient) PollToken(_ string) (*api.TokenResponse, error) {
+func (m *mockAPIClient) PollToken(_ string) (*models.PollTokenResponse, error) {
 	m.pollCount++
 	return m.tokenResp, m.tokenErr
 }
@@ -58,12 +62,10 @@ func runAuthLogin(t *testing.T, deps *loginDeps, args ...string) (string, error)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	root := NewRootCmd("dev")
-	// Replace the login command registered by NewRootCmd with one using our deps.
 	authCmd := findSubCommand(root, "auth")
 	if authCmd == nil {
 		t.Fatal("auth subcommand not found")
 	}
-	// Remove existing login and add one with test deps.
 	authCmd.RemoveCommand(findSubCommand(authCmd, "login"))
 	authCmd.AddCommand(newLoginCmd(deps))
 
@@ -90,16 +92,16 @@ func TestLoginSuccess(t *testing.T) {
 	deps := &loginDeps{
 		credStore: &mockCredStore{},
 		apiClient: &mockAPIClient{
-			deviceResp: &api.DeviceCodeResponse{
+			deviceResp: &models.DeviceFlowResponse{
 				DeviceCode:      "dev123",
 				UserCode:        "ABCD-1234",
-				VerificationURI: "https://github.com/login/device",
+				VerificationUri: "https://github.com/login/device",
 				Interval:        0,
 			},
-			tokenResp: &api.TokenResponse{
-				Status:      "authorized",
-				AccessToken: "tok_abc",
-				User:        &api.TokenUser{Name: "Alice", Email: "alice@example.com"},
+			tokenResp: &models.PollTokenResponse{
+				Status:      models.Authorized,
+				AccessToken: ptr("tok_abc"),
+				User:        &models.AuthUser{Name: "Alice", Email: "alice@example.com"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -135,16 +137,16 @@ func TestLoginBrowserFallback(t *testing.T) {
 	deps := &loginDeps{
 		credStore: &mockCredStore{},
 		apiClient: &mockAPIClient{
-			deviceResp: &api.DeviceCodeResponse{
+			deviceResp: &models.DeviceFlowResponse{
 				DeviceCode:      "dev123",
 				UserCode:        "WXYZ-5678",
-				VerificationURI: "https://github.com/login/device",
+				VerificationUri: "https://github.com/login/device",
 				Interval:        0,
 			},
-			tokenResp: &api.TokenResponse{
-				Status:      "authorized",
-				AccessToken: "tok",
-				User:        &api.TokenUser{Name: "Bob"},
+			tokenResp: &models.PollTokenResponse{
+				Status:      models.Authorized,
+				AccessToken: ptr("tok"),
+				User:        &models.AuthUser{Name: "Bob"},
 			},
 		},
 		openBrowser: func(_ string) error {
@@ -190,13 +192,13 @@ func TestLoginExpiredToken(t *testing.T) {
 	deps := &loginDeps{
 		credStore: &mockCredStore{},
 		apiClient: &mockAPIClient{
-			deviceResp: &api.DeviceCodeResponse{
+			deviceResp: &models.DeviceFlowResponse{
 				DeviceCode:      "dev123",
 				UserCode:        "ABCD-1234",
-				VerificationURI: "https://github.com/login/device",
+				VerificationUri: "https://github.com/login/device",
 				Interval:        0,
 			},
-			tokenResp: &api.TokenResponse{
+			tokenResp: &models.PollTokenResponse{
 				Status: "expired_token",
 			},
 		},
@@ -209,8 +211,8 @@ func TestLoginExpiredToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for expired token")
 	}
-	if !strings.Contains(err.Error(), "expired") {
-		t.Errorf("expected 'expired' in error, got %q", err.Error())
+	if !strings.Contains(err.Error(), "authorization failed") {
+		t.Errorf("expected 'authorization failed' in error, got %q", err.Error())
 	}
 }
 
@@ -224,7 +226,6 @@ func TestLoginAlreadyLoggedInDecline(t *testing.T) {
 		stdin:       bufio.NewReader(strings.NewReader("n\n")),
 	}
 
-	// IsTTY is false by default in tests, so it should decline automatically.
 	out, err := runAuthLogin(t, deps)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -235,7 +236,6 @@ func TestLoginAlreadyLoggedInDecline(t *testing.T) {
 }
 
 func TestLoginAlreadyLoggedInConfirm(t *testing.T) {
-	// We need to force IsTTY=true via the context.
 	resetViper()
 
 	deps := &loginDeps{
@@ -243,15 +243,15 @@ func TestLoginAlreadyLoggedInConfirm(t *testing.T) {
 			cred: &auth.Credential{AccessToken: "existing"},
 		},
 		apiClient: &mockAPIClient{
-			deviceResp: &api.DeviceCodeResponse{
+			deviceResp: &models.DeviceFlowResponse{
 				DeviceCode:      "dev123",
 				UserCode:        "ABCD-1234",
-				VerificationURI: "https://github.com/login/device",
+				VerificationUri: "https://github.com/login/device",
 			},
-			tokenResp: &api.TokenResponse{
-				Status:      "authorized",
-				AccessToken: "new_tok",
-				User:        &api.TokenUser{Name: "Alice"},
+			tokenResp: &models.PollTokenResponse{
+				Status:      models.Authorized,
+				AccessToken: ptr("new_tok"),
+				User:        &models.AuthUser{Name: "Alice"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -259,18 +259,14 @@ func TestLoginAlreadyLoggedInConfirm(t *testing.T) {
 		pollInterval: time.Millisecond,
 	}
 
-	// Build the command manually to inject IsTTY.
 	root := NewRootCmd("dev")
 	authCmd := findSubCommand(root, "auth")
 	authCmd.RemoveCommand(findSubCommand(authCmd, "login"))
-
-	loginCmd := newLoginCmd(deps)
-	authCmd.AddCommand(loginCmd)
+	authCmd.AddCommand(newLoginCmd(deps))
 
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 
-	// Override PersistentPreRunE to set IsTTY=true.
 	originalPreRun := root.PersistentPreRunE
 	root.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if err := originalPreRun(cmd, args); err != nil {
@@ -306,15 +302,15 @@ func TestLoginJSONOutput(t *testing.T) {
 	deps := &loginDeps{
 		credStore: &mockCredStore{},
 		apiClient: &mockAPIClient{
-			deviceResp: &api.DeviceCodeResponse{
+			deviceResp: &models.DeviceFlowResponse{
 				DeviceCode:      "dev123",
 				UserCode:        "ABCD-1234",
-				VerificationURI: "https://github.com/login/device",
+				VerificationUri: "https://github.com/login/device",
 			},
-			tokenResp: &api.TokenResponse{
-				Status:      "authorized",
-				AccessToken: "tok",
-				User:        &api.TokenUser{Name: "Alice"},
+			tokenResp: &models.PollTokenResponse{
+				Status:      models.Authorized,
+				AccessToken: ptr("tok"),
+				User:        &models.AuthUser{Name: "Alice"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -346,15 +342,15 @@ func TestLoginEmailFallback(t *testing.T) {
 	deps := &loginDeps{
 		credStore: &mockCredStore{},
 		apiClient: &mockAPIClient{
-			deviceResp: &api.DeviceCodeResponse{
+			deviceResp: &models.DeviceFlowResponse{
 				DeviceCode:      "dev123",
 				UserCode:        "ABCD-1234",
-				VerificationURI: "https://github.com/login/device",
+				VerificationUri: "https://github.com/login/device",
 			},
-			tokenResp: &api.TokenResponse{
-				Status:      "authorized",
-				AccessToken: "tok",
-				User:        &api.TokenUser{Email: "alice@example.com"},
+			tokenResp: &models.PollTokenResponse{
+				Status:      models.Authorized,
+				AccessToken: ptr("tok"),
+				User:        &models.AuthUser{Email: "alice@example.com"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -391,15 +387,15 @@ func TestLoginSaveError(t *testing.T) {
 			saveErr: context.DeadlineExceeded,
 		},
 		apiClient: &mockAPIClient{
-			deviceResp: &api.DeviceCodeResponse{
+			deviceResp: &models.DeviceFlowResponse{
 				DeviceCode:      "dev123",
 				UserCode:        "ABCD-1234",
-				VerificationURI: "https://github.com/login/device",
+				VerificationUri: "https://github.com/login/device",
 			},
-			tokenResp: &api.TokenResponse{
-				Status:      "authorized",
-				AccessToken: "tok",
-				User:        &api.TokenUser{Name: "Alice"},
+			tokenResp: &models.PollTokenResponse{
+				Status:      models.Authorized,
+				AccessToken: ptr("tok"),
+				User:        &models.AuthUser{Name: "Alice"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -436,10 +432,10 @@ func TestLoginCredentialLoadError(t *testing.T) {
 func TestPollForTokenAuthorizationPending(t *testing.T) {
 	calls := 0
 	client := &sequenceClient{
-		responses: []*api.TokenResponse{
-			{Status: "pending"},
-			{Status: "pending"},
-			{Status: "authorized", AccessToken: "final_tok", User: &api.TokenUser{Name: "Alice"}},
+		responses: []*models.PollTokenResponse{
+			{Status: models.Pending},
+			{Status: models.Pending},
+			{Status: models.Authorized, AccessToken: ptr("final_tok"), User: &models.AuthUser{Name: "Alice"}},
 		},
 	}
 
@@ -448,8 +444,8 @@ func TestPollForTokenAuthorizationPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if token.AccessToken != "final_tok" {
-		t.Errorf("access_token = %q, want final_tok", token.AccessToken)
+	if token.AccessToken == nil || *token.AccessToken != "final_tok" {
+		t.Errorf("access_token = %v, want final_tok", token.AccessToken)
 	}
 	if client.calls != 3 {
 		t.Errorf("calls = %d, want 3", client.calls)
@@ -459,14 +455,14 @@ func TestPollForTokenAuthorizationPending(t *testing.T) {
 
 type sequenceClient struct {
 	calls     int
-	responses []*api.TokenResponse
+	responses []*models.PollTokenResponse
 }
 
-func (s *sequenceClient) RequestDeviceCode() (*api.DeviceCodeResponse, error) {
+func (s *sequenceClient) RequestDeviceCode() (*models.DeviceFlowResponse, error) {
 	return nil, nil
 }
 
-func (s *sequenceClient) PollToken(_ string) (*api.TokenResponse, error) {
+func (s *sequenceClient) PollToken(_ string) (*models.PollTokenResponse, error) {
 	idx := s.calls
 	s.calls++
 	if idx < len(s.responses) {
@@ -477,11 +473,11 @@ func (s *sequenceClient) PollToken(_ string) (*api.TokenResponse, error) {
 
 func TestPollForTokenContextCancelled(t *testing.T) {
 	client := &mockAPIClient{
-		tokenResp: &api.TokenResponse{Status: "pending"},
+		tokenResp: &models.PollTokenResponse{Status: models.Pending},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately.
+	cancel()
 
 	_, err := pollForToken(ctx, client, "dev123", time.Millisecond)
 	if err == nil {
@@ -495,9 +491,9 @@ func TestPollForTokenSlowDown(t *testing.T) {
 	t.Cleanup(func() { slowDownIncrement = origIncrement })
 
 	client := &sequenceClient{
-		responses: []*api.TokenResponse{
-			{Status: "slow_down"},
-			{Status: "authorized", AccessToken: "tok_ok", User: &api.TokenUser{Name: "Alice"}},
+		responses: []*models.PollTokenResponse{
+			{Status: models.SlowDown},
+			{Status: models.Authorized, AccessToken: ptr("tok_ok"), User: &models.AuthUser{Name: "Alice"}},
 		},
 	}
 
@@ -506,8 +502,8 @@ func TestPollForTokenSlowDown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if token.AccessToken != "tok_ok" {
-		t.Errorf("access_token = %q, want tok_ok", token.AccessToken)
+	if token.AccessToken == nil || *token.AccessToken != "tok_ok" {
+		t.Errorf("access_token = %v, want tok_ok", token.AccessToken)
 	}
 	if client.calls != 2 {
 		t.Errorf("calls = %d, want 2", client.calls)
@@ -519,13 +515,12 @@ func TestPollForTokenSlowDownStacks(t *testing.T) {
 	slowDownIncrement = time.Millisecond
 	t.Cleanup(func() { slowDownIncrement = origIncrement })
 
-	// Multiple slow_down responses should stack: each adds the increment to the interval.
 	client := &sequenceClient{
-		responses: []*api.TokenResponse{
-			{Status: "slow_down"},
-			{Status: "slow_down"},
-			{Status: "slow_down"},
-			{Status: "authorized", AccessToken: "tok_stacked", User: &api.TokenUser{Name: "Bob"}},
+		responses: []*models.PollTokenResponse{
+			{Status: models.SlowDown},
+			{Status: models.SlowDown},
+			{Status: models.SlowDown},
+			{Status: models.Authorized, AccessToken: ptr("tok_stacked"), User: &models.AuthUser{Name: "Bob"}},
 		},
 	}
 
@@ -534,8 +529,8 @@ func TestPollForTokenSlowDownStacks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if token.AccessToken != "tok_stacked" {
-		t.Errorf("access_token = %q, want tok_stacked", token.AccessToken)
+	if token.AccessToken == nil || *token.AccessToken != "tok_stacked" {
+		t.Errorf("access_token = %v, want tok_stacked", token.AccessToken)
 	}
 	if client.calls != 4 {
 		t.Errorf("calls = %d, want 4 (3 slow_down + 1 success)", client.calls)
@@ -547,14 +542,12 @@ func TestPollForTokenSlowDownThenPending(t *testing.T) {
 	slowDownIncrement = time.Millisecond
 	t.Cleanup(func() { slowDownIncrement = origIncrement })
 
-	// After a slow_down, subsequent pending polls should continue with the
-	// increased interval and eventually succeed.
 	client := &sequenceClient{
-		responses: []*api.TokenResponse{
-			{Status: "pending"},
-			{Status: "slow_down"},
-			{Status: "pending"},
-			{Status: "authorized", AccessToken: "tok_mixed", User: &api.TokenUser{Name: "Carol"}},
+		responses: []*models.PollTokenResponse{
+			{Status: models.Pending},
+			{Status: models.SlowDown},
+			{Status: models.Pending},
+			{Status: models.Authorized, AccessToken: ptr("tok_mixed"), User: &models.AuthUser{Name: "Carol"}},
 		},
 	}
 
@@ -563,8 +556,8 @@ func TestPollForTokenSlowDownThenPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if token.AccessToken != "tok_mixed" {
-		t.Errorf("access_token = %q, want tok_mixed", token.AccessToken)
+	if token.AccessToken == nil || *token.AccessToken != "tok_mixed" {
+		t.Errorf("access_token = %v, want tok_mixed", token.AccessToken)
 	}
 	if client.calls != 4 {
 		t.Errorf("calls = %d, want 4", client.calls)
@@ -573,7 +566,7 @@ func TestPollForTokenSlowDownThenPending(t *testing.T) {
 
 func TestPollForTokenUnknownError(t *testing.T) {
 	client := &mockAPIClient{
-		tokenResp: &api.TokenResponse{Status: "access_denied"},
+		tokenResp: &models.PollTokenResponse{Status: "access_denied"},
 	}
 
 	ctx := context.Background()

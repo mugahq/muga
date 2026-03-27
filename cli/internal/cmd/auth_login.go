@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/mugahq/muga/api/models"
 	"github.com/mugahq/muga/cli/internal/api"
 	"github.com/mugahq/muga/cli/internal/auth"
 	"github.com/mugahq/muga/cli/internal/browser"
@@ -40,8 +41,8 @@ type credentialStore interface {
 
 // deviceFlowClient abstracts the API calls needed for device flow.
 type deviceFlowClient interface {
-	RequestDeviceCode() (*api.DeviceCodeResponse, error)
-	PollToken(deviceCode string) (*api.TokenResponse, error)
+	RequestDeviceCode() (*models.DeviceFlowResponse, error)
+	PollToken(deviceCode string) (*models.PollTokenResponse, error)
 }
 
 func newLoginCmd(deps *loginDeps) *cobra.Command {
@@ -85,8 +86,8 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	_, _ = fmt.Fprintln(w, "\nOpening browser to authenticate with GitHub...")
 	_, _ = fmt.Fprintf(w, "\n  Your code: %s\n", device.UserCode)
 
-	if err := deps.openBrowser(device.VerificationURI); err != nil {
-		_, _ = fmt.Fprintf(w, "\n  If the browser didn't open, visit:\n  %s\n", device.VerificationURI)
+	if err := deps.openBrowser(device.VerificationUri); err != nil {
+		_, _ = fmt.Fprintf(w, "\n  If the browser didn't open, visit:\n  %s\n", device.VerificationUri)
 	}
 
 	// Step 3: Poll for token.
@@ -106,16 +107,19 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	}
 
 	// Step 4: Save credentials.
-	cred := &auth.Credential{
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
+	cred := &auth.Credential{}
+	if token.AccessToken != nil {
+		cred.AccessToken = *token.AccessToken
+	}
+	if token.RefreshToken != nil {
+		cred.RefreshToken = *token.RefreshToken
 	}
 	if token.User != nil {
 		cred.UserName = token.User.Name
 		cred.UserEmail = token.User.Email
 	}
-	if token.ExpiresIn > 0 {
-		cred.ExpiresAt = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
+	if token.ExpiresIn != nil && *token.ExpiresIn > 0 {
+		cred.ExpiresAt = time.Now().Add(time.Duration(*token.ExpiresIn) * time.Second)
 	}
 
 	if err := deps.credStore.Save(cred); err != nil {
@@ -139,7 +143,7 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	return nil
 }
 
-func pollForToken(ctx context.Context, client deviceFlowClient, deviceCode string, interval time.Duration) (*api.TokenResponse, error) {
+func pollForToken(ctx context.Context, client deviceFlowClient, deviceCode string, interval time.Duration) (*models.PollTokenResponse, error) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -154,15 +158,13 @@ func pollForToken(ctx context.Context, client deviceFlowClient, deviceCode strin
 			}
 
 			switch token.Status {
-			case "authorized":
+			case models.Authorized:
 				return token, nil
-			case "pending":
+			case models.Pending:
 				continue
-			case "slow_down":
+			case models.SlowDown:
 				interval += slowDownIncrement
 				ticker.Reset(interval)
-			case "expired_token":
-				return nil, fmt.Errorf("device code expired — please run `muga auth login` again")
 			default:
 				return nil, fmt.Errorf("authorization failed: %s", token.Status)
 			}
