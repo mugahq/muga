@@ -97,9 +97,9 @@ func TestLoginSuccess(t *testing.T) {
 				Interval:        0,
 			},
 			tokenResp: &api.TokenResponse{
+				Status:      "authorized",
 				AccessToken: "tok_abc",
-				UserName:    "Alice",
-				UserEmail:   "alice@example.com",
+				User:        &api.TokenUser{Name: "Alice", Email: "alice@example.com"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -142,8 +142,9 @@ func TestLoginBrowserFallback(t *testing.T) {
 				Interval:        0,
 			},
 			tokenResp: &api.TokenResponse{
+				Status:      "authorized",
 				AccessToken: "tok",
-				UserName:    "Bob",
+				User:        &api.TokenUser{Name: "Bob"},
 			},
 		},
 		openBrowser: func(_ string) error {
@@ -196,7 +197,7 @@ func TestLoginExpiredToken(t *testing.T) {
 				Interval:        0,
 			},
 			tokenResp: &api.TokenResponse{
-				Error: "expired_token",
+				Status: "expired_token",
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -248,8 +249,9 @@ func TestLoginAlreadyLoggedInConfirm(t *testing.T) {
 				VerificationURI: "https://github.com/login/device",
 			},
 			tokenResp: &api.TokenResponse{
+				Status:      "authorized",
 				AccessToken: "new_tok",
-				UserName:    "Alice",
+				User:        &api.TokenUser{Name: "Alice"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -310,8 +312,9 @@ func TestLoginJSONOutput(t *testing.T) {
 				VerificationURI: "https://github.com/login/device",
 			},
 			tokenResp: &api.TokenResponse{
+				Status:      "authorized",
 				AccessToken: "tok",
-				UserName:    "Alice",
+				User:        &api.TokenUser{Name: "Alice"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -349,8 +352,9 @@ func TestLoginEmailFallback(t *testing.T) {
 				VerificationURI: "https://github.com/login/device",
 			},
 			tokenResp: &api.TokenResponse{
+				Status:      "authorized",
 				AccessToken: "tok",
-				UserEmail:   "alice@example.com",
+				User:        &api.TokenUser{Email: "alice@example.com"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -393,8 +397,9 @@ func TestLoginSaveError(t *testing.T) {
 				VerificationURI: "https://github.com/login/device",
 			},
 			tokenResp: &api.TokenResponse{
+				Status:      "authorized",
 				AccessToken: "tok",
-				UserName:    "Alice",
+				User:        &api.TokenUser{Name: "Alice"},
 			},
 		},
 		openBrowser:  func(_ string) error { return nil },
@@ -432,9 +437,9 @@ func TestPollForTokenAuthorizationPending(t *testing.T) {
 	calls := 0
 	client := &sequenceClient{
 		responses: []*api.TokenResponse{
-			{Error: "authorization_pending"},
-			{Error: "authorization_pending"},
-			{AccessToken: "final_tok", UserName: "Alice"},
+			{Status: "pending"},
+			{Status: "pending"},
+			{Status: "authorized", AccessToken: "final_tok", User: &api.TokenUser{Name: "Alice"}},
 		},
 	}
 
@@ -472,7 +477,7 @@ func (s *sequenceClient) PollToken(_ string) (*api.TokenResponse, error) {
 
 func TestPollForTokenContextCancelled(t *testing.T) {
 	client := &mockAPIClient{
-		tokenResp: &api.TokenResponse{Error: "authorization_pending"},
+		tokenResp: &api.TokenResponse{Status: "pending"},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -491,8 +496,8 @@ func TestPollForTokenSlowDown(t *testing.T) {
 
 	client := &sequenceClient{
 		responses: []*api.TokenResponse{
-			{Error: "slow_down"},
-			{AccessToken: "tok_ok", UserName: "Alice"},
+			{Status: "slow_down"},
+			{Status: "authorized", AccessToken: "tok_ok", User: &api.TokenUser{Name: "Alice"}},
 		},
 	}
 
@@ -517,10 +522,10 @@ func TestPollForTokenSlowDownStacks(t *testing.T) {
 	// Multiple slow_down responses should stack: each adds the increment to the interval.
 	client := &sequenceClient{
 		responses: []*api.TokenResponse{
-			{Error: "slow_down"},
-			{Error: "slow_down"},
-			{Error: "slow_down"},
-			{AccessToken: "tok_stacked", UserName: "Bob"},
+			{Status: "slow_down"},
+			{Status: "slow_down"},
+			{Status: "slow_down"},
+			{Status: "authorized", AccessToken: "tok_stacked", User: &api.TokenUser{Name: "Bob"}},
 		},
 	}
 
@@ -546,10 +551,10 @@ func TestPollForTokenSlowDownThenPending(t *testing.T) {
 	// increased interval and eventually succeed.
 	client := &sequenceClient{
 		responses: []*api.TokenResponse{
-			{Error: "authorization_pending"},
-			{Error: "slow_down"},
-			{Error: "authorization_pending"},
-			{AccessToken: "tok_mixed", UserName: "Carol"},
+			{Status: "pending"},
+			{Status: "slow_down"},
+			{Status: "pending"},
+			{Status: "authorized", AccessToken: "tok_mixed", User: &api.TokenUser{Name: "Carol"}},
 		},
 	}
 
@@ -568,7 +573,7 @@ func TestPollForTokenSlowDownThenPending(t *testing.T) {
 
 func TestPollForTokenUnknownError(t *testing.T) {
 	client := &mockAPIClient{
-		tokenResp: &api.TokenResponse{Error: "access_denied"},
+		tokenResp: &api.TokenResponse{Status: "access_denied"},
 	}
 
 	ctx := context.Background()
