@@ -51,6 +51,13 @@ func NewRootCmd(version, commit, date string) *cobra.Command {
 	authCmd := newAuthCmd()
 	authCmd.AddCommand(newLoginCmd(nil))
 	rootCmd.AddCommand(authCmd)
+
+	projectCmd := newProjectCmd()
+	projectCmd.AddCommand(newProjectCreateCmd(nil))
+	projectCmd.AddCommand(newProjectLsCmd(nil))
+	projectCmd.AddCommand(newProjectSwitchCmd(nil))
+	rootCmd.AddCommand(projectCmd)
+
 	rootCmd.AddCommand(newVersionCmd(VersionInfo{
 		Version: version,
 		Commit:  commit,

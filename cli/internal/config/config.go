@@ -48,6 +48,33 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
+// Save writes the configuration to the config file.
+func Save(cfg *Config) error {
+	dir := configPath()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
+	}
+
+	viper.Set("api_url", cfg.APIURL)
+	viper.Set("project", cfg.Project)
+
+	path := filepath.Join(dir, configFile+"."+configType)
+	if err := viper.WriteConfigAs(path); err != nil {
+		return fmt.Errorf("writing config file: %w", err)
+	}
+	return nil
+}
+
+// SetProject updates the active project in the config file.
+func SetProject(slug string) error {
+	cfg, err := Load()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	cfg.Project = slug
+	return Save(cfg)
+}
+
 func configPath() string {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		return filepath.Join(xdg, configDir)
