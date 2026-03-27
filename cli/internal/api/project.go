@@ -21,7 +21,7 @@ func (c *Client) ListProjects() ([]models.Project, error) {
 	}
 
 	var result struct {
-		Data       []models.Project `json:"data"`
+		Data       []models.Project  `json:"data"`
 		Pagination models.Pagination `json:"pagination"`
 	}
 	if err := decodeJSON(resp.Body, &result); err != nil {

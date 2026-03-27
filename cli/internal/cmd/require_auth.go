@@ -10,6 +10,9 @@ import (
 
 // requireAuth loads stored credentials and returns an authenticated API client.
 func requireAuth(cfg *config.Config, credStore *auth.CredentialStore) (*api.Client, error) {
+	if credStore == nil {
+		credStore = auth.NewCredentialStore()
+	}
 	cred, err := credStore.Load()
 	if err != nil {
 		return nil, fmt.Errorf("reading credentials: %w", err)

@@ -112,3 +112,86 @@ func TestLoadInvalidConfigFile(t *testing.T) {
 		t.Fatal("expected error for invalid config file")
 	}
 }
+
+func TestSaveAndLoad(t *testing.T) {
+	resetViper()
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	cfg := &Config{
+		APIURL:  "https://custom.api",
+		Project: "saved-project",
+	}
+
+	if err := Save(cfg); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	resetViper()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load after Save: %v", err)
+	}
+
+	if loaded.APIURL != "https://custom.api" {
+		t.Errorf("APIURL = %q, want https://custom.api", loaded.APIURL)
+	}
+	if loaded.Project != "saved-project" {
+		t.Errorf("Project = %q, want saved-project", loaded.Project)
+	}
+}
+
+func TestSetProject(t *testing.T) {
+	resetViper()
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	if err := SetProject("my-slug"); err != nil {
+		t.Fatalf("SetProject: %v", err)
+	}
+
+	resetViper()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load after SetProject: %v", err)
+	}
+	if loaded.Project != "my-slug" {
+		t.Errorf("Project = %q, want my-slug", loaded.Project)
+	}
+}
+
+func TestSetProjectUpdatesExisting(t *testing.T) {
+	resetViper()
+	dir := t.TempDir()
+	mugaDir := filepath.Join(dir, "muga")
+	if err := os.MkdirAll(mugaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := []byte("api_url = \"https://custom.api\"\nproject = \"old-project\"\n")
+	if err := os.WriteFile(filepath.Join(mugaDir, "config.toml"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	if err := SetProject("new-project"); err != nil {
+		t.Fatalf("SetProject: %v", err)
+	}
+
+	resetViper()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if loaded.Project != "new-project" {
+		t.Errorf("Project = %q, want new-project", loaded.Project)
+	}
+	if loaded.APIURL != "https://custom.api" {
+		t.Errorf("APIURL = %q, want https://custom.api (should be preserved)", loaded.APIURL)
+	}
+}

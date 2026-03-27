@@ -15,11 +15,11 @@ import (
 // --- mocks ---
 
 type mockProjectClient struct {
-	projects   []models.Project
-	listErr    error
-	created    *models.Project
-	createReq  models.CreateProjectRequest
-	createErr  error
+	projects  []models.Project
+	listErr   error
+	created   *models.Project
+	createReq models.CreateProjectRequest
+	createErr error
 }
 
 func (m *mockProjectClient) ListProjects() ([]models.Project, error) {
