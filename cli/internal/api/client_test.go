@@ -16,8 +16,8 @@ func TestRequestDeviceCode(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %s, want POST", r.Method)
 		}
-		if r.URL.Path != "/auth/device" {
-			t.Errorf("path = %s, want /auth/device", r.URL.Path)
+		if r.URL.Path != "/v1/auth/device" {
+			t.Errorf("path = %s, want /v1/auth/device", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(models.DeviceFlowResponse{
@@ -61,8 +61,8 @@ func TestRequestDeviceCodeServerError(t *testing.T) {
 
 func TestPollTokenSuccess(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/auth/token" {
-			t.Errorf("path = %s, want /auth/token", r.URL.Path)
+		if r.URL.Path != "/v1/auth/token" {
+			t.Errorf("path = %s, want /v1/auth/token", r.URL.Path)
 		}
 
 		var req models.PollTokenRequest

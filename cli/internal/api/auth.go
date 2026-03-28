@@ -11,7 +11,7 @@ import (
 
 // RequestDeviceCode starts the device authorization flow.
 func (c *Client) RequestDeviceCode() (*models.DeviceFlowResponse, error) {
-	resp, err := c.post("/auth/device", nil)
+	resp, err := c.post("/v1/auth/device", nil)
 	if err != nil {
 		return nil, fmt.Errorf("requesting device code: %w", err)
 	}
@@ -36,7 +36,7 @@ func (c *Client) PollToken(deviceCode string) (*models.PollTokenResponse, error)
 		return nil, fmt.Errorf("encoding poll request: %w", err)
 	}
 
-	resp, err := c.post("/auth/token", bytes.NewReader(body))
+	resp, err := c.post("/v1/auth/token", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("polling token: %w", err)
 	}
