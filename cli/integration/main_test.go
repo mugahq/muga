@@ -119,7 +119,7 @@ func newMockServer(t *testing.T) *httptest.Server {
 	})
 
 	// Device flow: initiate.
-	mux.HandleFunc("POST /auth/device", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("POST /v1/auth/device", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"device_code":      "integration-device-code",
@@ -131,7 +131,7 @@ func newMockServer(t *testing.T) *httptest.Server {
 	})
 
 	// Device flow: poll token — always returns authorized.
-	mux.HandleFunc("POST /auth/token", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST /v1/auth/token", func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]string
 		_ = json.NewDecoder(r.Body).Decode(&body)
 
