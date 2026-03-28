@@ -65,7 +65,7 @@ func (r *Renderer) muted(text string) string {
 
 // DetailRow renders a key-value pair for detail views.
 //
-//	  Plan         pro
+//	Plan         pro
 func (r *Renderer) DetailRow(key, value string, keyWidth int) string {
 	padded := fmt.Sprintf("%-*s", keyWidth, key)
 	if !r.styled() {
