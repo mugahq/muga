@@ -88,10 +88,7 @@ func renderBannerJSON(w io.Writer, version string, deps *bannerDeps, opts *outpu
 
 // renderBannerPlain outputs command names only, one per line — for pipes and CI.
 func renderBannerPlain(w io.Writer, cmd *cobra.Command) error {
-	for _, c := range cmd.Commands() {
-		if c.Hidden || !c.IsAvailableCommand() {
-			continue
-		}
+	for _, c := range visibleSubcommands(cmd) {
 		fmt.Fprintln(w, c.Name())
 	}
 	return nil
@@ -259,4 +256,81 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
 	return nil
+}
+
+// renderNounHelp renders a branded help screen for noun commands (commands
+// with subcommands, excluding root). Pattern:
+//
+//	muga ──────────────────────────────────── my-saas · pro
+//
+//	AUTH
+//	  login       Sign in with GitHub
+//	  logout      Sign out and clear credentials
+//
+//	muga auth [cmd] --help for details
+func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
+	if opts == nil {
+		opts = &output.Opts{}
+	}
+
+	if !opts.IsTTY {
+		return renderBannerPlain(w, cmd)
+	}
+
+	r := style.NewRenderer(*opts)
+	width := style.TerminalWidth()
+	narrow := width < 40
+
+	// Signature line.
+	suffix := opts.Project
+	fmt.Fprintln(w, r.SignatureLine(width, suffix))
+	fmt.Fprintln(w)
+
+	// Section header = noun name in uppercase.
+	fmt.Fprintln(w, r.SectionHeader(cmd.Name()))
+
+	// Subcommand rows.
+	nameWidth := maxSubcommandWidth(cmd)
+	for _, sub := range visibleSubcommands(cmd) {
+		if narrow {
+			fmt.Fprintln(w, r.CommandRow(sub.Name(), "", nameWidth))
+		} else {
+			fmt.Fprintln(w, r.CommandRow(sub.Name(), sub.Short, nameWidth))
+		}
+	}
+
+	// Footer (skip for narrow terminals).
+	if !narrow {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, r.Footer(fmt.Sprintf("muga %s [cmd] --help for details", cmd.Name())))
+	}
+
+	return nil
+}
+
+// visibleSubcommands returns non-hidden, non-auto-generated subcommands.
+func visibleSubcommands(cmd *cobra.Command) []*cobra.Command {
+	var result []*cobra.Command
+	for _, sub := range cmd.Commands() {
+		if sub.Hidden {
+			continue
+		}
+		// Skip auto-generated cobra commands.
+		if sub.Name() == "help" || sub.Name() == "completion" {
+			continue
+		}
+		result = append(result, sub)
+	}
+	return result
+}
+
+// maxSubcommandWidth returns the length of the longest visible subcommand name.
+func maxSubcommandWidth(cmd *cobra.Command) int {
+	max := 0
+	for _, sub := range visibleSubcommands(cmd) {
+		if len(sub.Name()) > max {
+			max = len(sub.Name())
+		}
+	}
+	return max
 }

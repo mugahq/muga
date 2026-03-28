@@ -59,13 +59,58 @@ func NewRootCmd(version, commit, date string) *cobra.Command {
 	// Register subcommands.
 	authCmd := newAuthCmd()
 	authCmd.AddCommand(newLoginCmd(nil))
+	authCmd.AddCommand(newLogoutCmd())
+	authCmd.AddCommand(newAuthStatusCmd())
 	rootCmd.AddCommand(authCmd)
 
 	projectCmd := newProjectCmd()
 	projectCmd.AddCommand(newProjectCreateCmd(nil))
 	projectCmd.AddCommand(newProjectLsCmd(nil))
 	projectCmd.AddCommand(newProjectSwitchCmd(nil))
+	projectCmd.AddCommand(newProjectRmCmd())
 	rootCmd.AddCommand(projectCmd)
+
+	monitorCmd := newMonitorCmd()
+	monitorCmd.AddCommand(newMonitorAddCmd())
+	monitorCmd.AddCommand(newMonitorLsCmd())
+	monitorCmd.AddCommand(newMonitorRmCmd())
+	rootCmd.AddCommand(monitorCmd)
+
+	cronCmd := newCronCmd()
+	cronCmd.AddCommand(newCronAddCmd())
+	cronCmd.AddCommand(newCronLsCmd())
+	cronCmd.AddCommand(newCronRmCmd())
+	cronCmd.AddCommand(newCronPingCmd())
+	rootCmd.AddCommand(cronCmd)
+
+	alertsCmd := newAlertsCmd()
+	alertsCmd.AddCommand(newAlertsAddCmd())
+	alertsCmd.AddCommand(newAlertsLsCmd())
+	alertsCmd.AddCommand(newAlertsHistoryCmd())
+	alertsCmd.AddCommand(newAlertsRmCmd())
+	rootCmd.AddCommand(alertsCmd)
+
+	logsCmd := newLogsCmd()
+	logsCmd.AddCommand(newLogsSearchCmd())
+	logsCmd.AddCommand(newLogsTailCmd())
+	logsCmd.AddCommand(newLogsSendCmd())
+	rootCmd.AddCommand(logsCmd)
+
+	errorsCmd := newErrorsCmd()
+	errorsCmd.AddCommand(newErrorsLsCmd())
+	errorsCmd.AddCommand(newErrorsShowCmd())
+	rootCmd.AddCommand(errorsCmd)
+
+	configCmd := newConfigCmd()
+	configCmd.AddCommand(newConfigSetCmd())
+	configCmd.AddCommand(newConfigGetCmd())
+	configCmd.AddCommand(newConfigLsCmd())
+	rootCmd.AddCommand(configCmd)
+
+	planCmd := newPlanCmd()
+	planCmd.AddCommand(newPlanStatusCmd())
+	planCmd.AddCommand(newPlanUpgradeCmd())
+	rootCmd.AddCommand(planCmd)
 
 	rootCmd.AddCommand(newVersionCmd(VersionInfo{
 		Version: version,
@@ -77,13 +122,18 @@ func NewRootCmd(version, commit, date string) *cobra.Command {
 	// The command still works via `muga completion bash|zsh|fish`.
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 
-	// Custom help: `muga help` shows the full command reference.
+	// Custom help: root shows the full command reference, noun commands
+	// show branded noun help, leaf commands keep Cobra's default.
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
 		if cmd.Root() == cmd {
 			_ = renderFullHelp(cmd.OutOrStdout(), cmd, version)
 			return
 		}
-		// Subcommands fall back to Cobra's default help.
+		if cmd.HasSubCommands() {
+			opts := output.FromContext(cmd.Context())
+			_ = renderNounHelp(cmd.OutOrStdout(), cmd, opts)
+			return
+		}
 		_ = cmd.Usage()
 	})
 
