@@ -86,7 +86,7 @@ func RenderTable(w io.Writer, headers []string, rows [][]string) error {
 		}
 		fmt.Fprintf(&b, "%-*s", widths[i], strings.ToUpper(h))
 	}
-	fmt.Fprintln(w, b.String())
+	_, _ = fmt.Fprintln(w, b.String())
 
 	// Print data rows.
 	for _, row := range rows {
@@ -102,7 +102,7 @@ func RenderTable(w io.Writer, headers []string, rows [][]string) error {
 			}
 			fmt.Fprintf(&b, "%-*s", widths[i], val)
 		}
-		fmt.Fprintln(w, b.String())
+		_, _ = fmt.Fprintln(w, b.String())
 	}
 
 	return nil

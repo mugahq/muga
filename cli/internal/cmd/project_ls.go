@@ -48,7 +48,7 @@ func runProjectLs(cmd *cobra.Command, deps *projectLsDeps) error {
 	}
 
 	if len(projects) == 0 {
-		fmt.Fprintln(w, "No projects yet. Run muga project create NAME to get started.")
+		_, _ = fmt.Fprintln(w, "No projects yet. Run muga project create NAME to get started.")
 		return nil
 	}
 
