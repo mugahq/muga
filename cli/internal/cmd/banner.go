@@ -1,0 +1,262 @@
+package cmd
+
+import (
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/mugahq/muga/cli/internal/auth"
+	"github.com/mugahq/muga/cli/internal/output"
+	"github.com/mugahq/muga/cli/internal/style"
+)
+
+// bannerDeps holds injectable dependencies for banner rendering.
+type bannerDeps struct {
+	credStore *auth.CredentialStore
+}
+
+// commandGroup defines a section of commands shown in the authenticated banner.
+type commandGroup struct {
+	title    string
+	commands []commandEntry
+}
+
+type commandEntry struct {
+	name string
+	desc string
+}
+
+var observabilityGroup = commandGroup{
+	title: "Observability",
+	commands: []commandEntry{
+		{"logs", "Search, tail, and send log entries"},
+		{"monitor", "Check if your stuff is up"},
+		{"cron", "Know when a job goes silent"},
+		{"errors", "Track and group runtime errors"},
+		{"alerts", "Get notified when things break"},
+	},
+}
+
+var setupGroup = commandGroup{
+	title: "Setup",
+	commands: []commandEntry{
+		{"auth", "Sign in, sign out, check status"},
+		{"project", "Switch between projects"},
+		{"config", "Tune CLI preferences"},
+		{"plan", "View your plan and usage"},
+	},
+}
+
+// renderBanner writes the branded root output to w based on output mode.
+func renderBanner(w io.Writer, cmd *cobra.Command, version string, deps *bannerDeps) error {
+	opts := output.FromContext(cmd.Context())
+
+	if opts.JSON {
+		return renderBannerJSON(w, version, deps, opts)
+	}
+
+	if !opts.IsTTY {
+		return renderBannerPlain(w, cmd)
+	}
+
+	return renderBannerTTY(w, version, deps, opts)
+}
+
+// renderBannerJSON outputs machine-readable JSON with version and auth state.
+func renderBannerJSON(w io.Writer, version string, deps *bannerDeps, opts *output.Opts) error {
+	cred := loadCredential(deps)
+
+	data := map[string]any{
+		"version":       version,
+		"authenticated": cred != nil,
+		"project":       nil,
+		"tier":          nil,
+	}
+
+	if cred != nil {
+		if opts.Project != "" {
+			data["project"] = opts.Project
+		}
+		// Tier is not yet available in the config/credential store.
+		// Placeholder for future implementation.
+	}
+
+	return output.RenderJSON(w, data)
+}
+
+// renderBannerPlain outputs command names only, one per line — for pipes and CI.
+func renderBannerPlain(w io.Writer, cmd *cobra.Command) error {
+	for _, c := range cmd.Commands() {
+		if c.Hidden || !c.IsAvailableCommand() {
+			continue
+		}
+		fmt.Fprintln(w, c.Name())
+	}
+	return nil
+}
+
+// renderBannerTTY outputs the full branded banner with styling.
+func renderBannerTTY(w io.Writer, version string, deps *bannerDeps, opts *output.Opts) error {
+	r := style.NewRenderer(*opts)
+	width := style.TerminalWidth()
+	narrow := width < 40
+
+	cred := loadCredential(deps)
+	authenticated := cred != nil
+
+	// Signature line with optional project/tier suffix.
+	var suffix string
+	if authenticated && opts.Project != "" {
+		suffix = opts.Project
+	}
+	fmt.Fprintln(w, r.SignatureLine(width, suffix))
+
+	// Tagline — omitted in narrow mode.
+	if !narrow {
+		fmt.Fprintln(w, r.Tagline())
+	}
+
+	fmt.Fprintln(w)
+
+	if !authenticated {
+		return renderQuickStart(w, r)
+	}
+
+	return renderCommandGroups(w, r, narrow, version)
+}
+
+func renderQuickStart(w io.Writer, r *style.Renderer) error {
+	fmt.Fprintln(w, "Quick start:")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, r.QuickStartStep(1, "muga auth login", "Sign in with GitHub"))
+	fmt.Fprintln(w, r.QuickStartStep(2, "muga project create", "Create your first project"))
+	fmt.Fprintln(w, r.QuickStartStep(3, `muga logs send "hello"`, "Send a test log entry"))
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Run muga help for all commands.")
+	return nil
+}
+
+func renderCommandGroups(w io.Writer, r *style.Renderer, narrow bool, version string) error {
+	nameWidth := maxCommandNameWidth()
+
+	for i, group := range []commandGroup{observabilityGroup, setupGroup} {
+		fmt.Fprintln(w, r.SectionHeader(group.title))
+		for _, entry := range group.commands {
+			if narrow {
+				fmt.Fprintln(w, r.CommandRow(entry.name, "", nameWidth))
+			} else {
+				fmt.Fprintln(w, r.CommandRow(entry.name, entry.desc, nameWidth))
+			}
+		}
+		if i == 0 {
+			fmt.Fprintln(w)
+		}
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
+	return nil
+}
+
+func maxCommandNameWidth() int {
+	max := 0
+	for _, group := range []commandGroup{observabilityGroup, setupGroup} {
+		for _, entry := range group.commands {
+			if len(entry.name) > max {
+				max = len(entry.name)
+			}
+		}
+	}
+	return max
+}
+
+func loadCredential(deps *bannerDeps) *auth.Credential {
+	var store *auth.CredentialStore
+	if deps != nil && deps.credStore != nil {
+		store = deps.credStore
+	} else {
+		store = auth.NewCredentialStore()
+	}
+
+	cred, _ := store.Load()
+	return cred
+}
+
+// renderFullHelp writes the extended help reference used by `muga help`.
+func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
+	opts := output.FromContext(cmd.Context())
+
+	if !opts.IsTTY {
+		return renderBannerPlain(w, cmd)
+	}
+
+	r := style.NewRenderer(*opts)
+	width := style.TerminalWidth()
+
+	fmt.Fprintln(w, r.SignatureLine(width, ""))
+	fmt.Fprintln(w, r.Tagline())
+	fmt.Fprintln(w)
+
+	// Expanded commands: show subcommands.
+	nameWidth := 0
+	type flatCmd struct {
+		name string
+		desc string
+	}
+	var commands []flatCmd
+
+	for _, c := range cmd.Commands() {
+		if c.Hidden || !c.IsAvailableCommand() {
+			continue
+		}
+		if c.HasSubCommands() {
+			for _, sub := range c.Commands() {
+				if sub.Hidden || !sub.IsAvailableCommand() {
+					continue
+				}
+				full := c.Name() + " " + sub.Name()
+				if len(full) > nameWidth {
+					nameWidth = len(full)
+				}
+				commands = append(commands, flatCmd{full, sub.Short})
+			}
+		} else {
+			if len(c.Name()) > nameWidth {
+				nameWidth = len(c.Name())
+			}
+			commands = append(commands, flatCmd{c.Name(), c.Short})
+		}
+	}
+
+	fmt.Fprintln(w, r.SectionHeader("Commands"))
+	for _, c := range commands {
+		fmt.Fprintln(w, r.CommandRow(c.name, c.desc, nameWidth))
+	}
+
+	// Global flags section.
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, r.SectionHeader("Global flags"))
+
+	flags := []struct{ flag, desc string }{
+		{"--json", "Output in JSON format"},
+		{"--project, -p", "Project slug (env: MUGA_PROJECT)"},
+		{"--no-color", "Disable colored output"},
+		{"--verbose, -v", "Enable verbose output"},
+	}
+
+	flagWidth := 0
+	for _, f := range flags {
+		if len(f.flag) > flagWidth {
+			flagWidth = len(f.flag)
+		}
+	}
+	for _, f := range flags {
+		fmt.Fprintf(w, "  %-*s  %s\n", flagWidth, f.flag, f.desc)
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
+	return nil
+}

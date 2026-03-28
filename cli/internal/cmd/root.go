@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -18,6 +19,9 @@ func NewRootCmd(version, commit, date string) *cobra.Command {
 		Use:     "muga",
 		Short:   "Muga — observability for AI-assisted development",
 		Version: version,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return renderBanner(cmd.OutOrStdout(), cmd, version, nil)
+		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.Load()
 			if err != nil {
@@ -29,6 +33,11 @@ func NewRootCmd(version, commit, date string) *cobra.Command {
 			}
 			if outputOpts.Project == "" {
 				outputOpts.Project = cfg.Project
+			}
+
+			// MUGA_OUTPUT=json overrides default output format.
+			if os.Getenv("MUGA_OUTPUT") == "json" && !cmd.Flags().Changed("json") {
+				outputOpts.JSON = true
 			}
 
 			outputOpts.DetectTTY()
@@ -63,6 +72,20 @@ func NewRootCmd(version, commit, date string) *cobra.Command {
 		Commit:  commit,
 		Date:    date,
 	}))
+
+	// Hide Cobra's built-in completion from root/help output.
+	// The command still works via `muga completion bash|zsh|fish`.
+	rootCmd.CompletionOptions.HiddenDefaultCmd = true
+
+	// Custom help: `muga help` shows the full command reference.
+	rootCmd.SetHelpFunc(func(cmd *cobra.Command, _ []string) {
+		if cmd.Root() == cmd {
+			_ = renderFullHelp(cmd.OutOrStdout(), cmd, version)
+			return
+		}
+		// Subcommands fall back to Cobra's default help.
+		_ = cmd.Usage()
+	})
 
 	return rootCmd
 }
