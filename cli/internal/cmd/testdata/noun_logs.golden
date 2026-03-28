@@ -1,0 +1,8 @@
+muga ─────── spedr
+
+LOGS
+  search  Query log entries with filters
+  send    Send a log entry
+  tail    Stream log entries in real time
+
+muga logs [cmd] --help for details

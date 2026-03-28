@@ -1,0 +1,9 @@
+muga ─────── spedr
+
+CRON
+  add   Create a cron monitor
+  ls    List cron monitors
+  ping  Send a heartbeat ping
+  rm    Delete a cron monitor
+
+muga cron [cmd] --help for details

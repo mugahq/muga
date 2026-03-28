@@ -1,0 +1,8 @@
+muga ─────── spedr
+
+AUTH
+  login   Sign in with GitHub
+  logout  Sign out and clear credentials
+  status  Show current authentication state
+
+muga auth [cmd] --help for details

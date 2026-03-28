@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mugahq/muga/cli/internal/config"
@@ -43,6 +45,11 @@ func runProjectLs(cmd *cobra.Command, deps *projectLsDeps) error {
 
 	if opts.JSON {
 		return output.RenderJSON(w, projects)
+	}
+
+	if len(projects) == 0 {
+		fmt.Fprintln(w, "No projects yet. Run muga project create NAME to get started.")
+		return nil
 	}
 
 	headers := []string{"Name", "Slug", "Created", "Active"}

@@ -1,0 +1,5 @@
+  NAME            EXPECTED  GRACE  STATUS   LAST PING
+  Nightly backup  24h       5m     healthy  3h ago
+  Report gen      1h        10m    late     2h ago
+  DB cleanup      12h       30m    missed   2d ago
+  New job         6h        15m    unknown  never

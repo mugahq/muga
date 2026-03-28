@@ -1,0 +1,8 @@
+muga ─────── spedr
+
+CONFIG
+  get  Show a configuration value
+  ls   Show all configuration
+  set  Set a configuration value
+
+muga config [cmd] --help for details
