@@ -1,3 +1,5 @@
+muga ─────── spedr
+
 Cron monitor created: Nightly backup (every 24h, 5m grace)
 
 Ping URL: https://api.muga.sh/v1/crons/550e8400/ping
