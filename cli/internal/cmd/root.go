@@ -34,6 +34,9 @@ func NewRootCmd(version, commit, date string) *cobra.Command {
 			if outputOpts.Project == "" {
 				outputOpts.Project = cfg.Project
 			}
+			if outputOpts.Tier == "" {
+				outputOpts.Tier = cfg.Tier
+			}
 
 			// MUGA_OUTPUT=json overrides default output format.
 			if os.Getenv("MUGA_OUTPUT") == "json" && !cmd.Flags().Changed("json") {

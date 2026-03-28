@@ -29,6 +29,7 @@ func newAuthStatusCmd() *cobra.Command {
 						"authenticated": false,
 					})
 				}
+				renderSignatureHeader(w, opts)
 				_, _ = fmt.Fprintln(w, "Not logged in. Run muga auth login to authenticate.")
 				return nil
 			}

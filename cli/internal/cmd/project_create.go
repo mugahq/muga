@@ -93,6 +93,7 @@ func runProjectCreate(cmd *cobra.Command, name string, deps *projectCreateDeps) 
 		return output.RenderJSON(w, project)
 	}
 
+	renderSignatureHeader(w, opts)
 	_, _ = fmt.Fprintf(w, "Project created: %s (%s)\n", project.Name, project.Slug)
 	_, _ = fmt.Fprintf(w, "Set as active project.\n")
 	return nil

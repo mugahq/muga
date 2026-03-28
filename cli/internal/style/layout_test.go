@@ -13,17 +13,26 @@ func plainRenderer() *Renderer {
 
 func TestSignatureLineNoSuffix(t *testing.T) {
 	r := plainRenderer()
-	line := r.SignatureLine("")
+	line := r.SignatureLine("", "")
 	want := "muga " + strings.Repeat(dash, numDashes)
 	if line != want {
 		t.Errorf("expected %q, got %q", want, line)
 	}
 }
 
-func TestSignatureLineWithSuffix(t *testing.T) {
+func TestSignatureLineWithProject(t *testing.T) {
 	r := plainRenderer()
-	line := r.SignatureLine("spedr")
+	line := r.SignatureLine("spedr", "")
 	want := "muga " + strings.Repeat(dash, numDashes) + " spedr"
+	if line != want {
+		t.Errorf("expected %q, got %q", want, line)
+	}
+}
+
+func TestSignatureLineWithProjectAndTier(t *testing.T) {
+	r := plainRenderer()
+	line := r.SignatureLine("spedr", "pro")
+	want := "muga " + strings.Repeat(dash, numDashes) + " spedr · pro"
 	if line != want {
 		t.Errorf("expected %q, got %q", want, line)
 	}

@@ -79,8 +79,9 @@ func renderBannerJSON(w io.Writer, version string, deps *bannerDeps, opts *outpu
 		if opts.Project != "" {
 			data["project"] = opts.Project
 		}
-		// Tier is not yet available in the config/credential store.
-		// Placeholder for future implementation.
+		if opts.Tier != "" {
+			data["tier"] = opts.Tier
+		}
 	}
 
 	return output.RenderJSON(w, data)
@@ -103,11 +104,12 @@ func renderBannerTTY(w io.Writer, version string, deps *bannerDeps, opts *output
 	authenticated := cred != nil
 
 	// Signature line with optional project/tier suffix.
-	var suffix string
+	var project, tier string
 	if authenticated && opts.Project != "" {
-		suffix = opts.Project
+		project = opts.Project
+		tier = opts.Tier
 	}
-	_, _ = fmt.Fprintln(w, r.SignatureLine(suffix))
+	_, _ = fmt.Fprintln(w, r.SignatureLine(project, tier))
 
 	_, _ = fmt.Fprintln(w, r.Tagline())
 
@@ -188,7 +190,7 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 
 	r := style.NewRenderer(*opts)
 
-	_, _ = fmt.Fprintln(w, r.SignatureLine(""))
+	_, _ = fmt.Fprintln(w, r.SignatureLine("", ""))
 	_, _ = fmt.Fprintln(w, r.Tagline())
 	_, _ = fmt.Fprintln(w)
 
@@ -277,8 +279,7 @@ func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
 	narrow := style.IsNarrow()
 
 	// Signature line.
-	suffix := opts.Project
-	_, _ = fmt.Fprintln(w, r.SignatureLine(suffix))
+	_, _ = fmt.Fprintln(w, r.SignatureLine(opts.Project, opts.Tier))
 	_, _ = fmt.Fprintln(w)
 
 	// Section header = noun name in uppercase.
@@ -301,6 +302,14 @@ func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
 	}
 
 	return nil
+}
+
+// renderSignatureHeader writes the signature line followed by a blank line to w.
+// It is used by verb commands to prefix their output with the branded header.
+func renderSignatureHeader(w io.Writer, opts *output.Opts) {
+	r := style.NewRenderer(*opts)
+	_, _ = fmt.Fprintln(w, r.SignatureLine(opts.Project, opts.Tier))
+	_, _ = fmt.Fprintln(w)
 }
 
 // visibleSubcommands returns non-hidden, non-auto-generated subcommands.

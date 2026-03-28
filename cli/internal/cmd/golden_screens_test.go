@@ -14,11 +14,11 @@ import (
 
 // --- helpers ----------------------------------------------------------------
 
-func noColorOpts(project string) *output.Opts {
-	return &output.Opts{IsTTY: true, NoColor: true, Project: project}
+func noColorOpts(project, tier string) *output.Opts {
+	return &output.Opts{IsTTY: true, NoColor: true, Project: project, Tier: tier}
 }
 
-func nounTestCmd(t *testing.T, noun, project string) string {
+func nounTestCmd(t *testing.T, noun, project, tier string) string {
 	t.Helper()
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
@@ -35,6 +35,7 @@ func nounTestCmd(t *testing.T, noun, project string) string {
 		opts.IsTTY = true
 		opts.NoColor = true
 		opts.Project = project
+		opts.Tier = tier
 		return nil
 	}
 
@@ -51,39 +52,39 @@ func nounTestCmd(t *testing.T, noun, project string) string {
 // --- noun help screens ------------------------------------------------------
 
 func TestGolden_NounAuth(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "auth", "spedr"), "noun_auth")
+	assertGolden(t, nounTestCmd(t, "auth", "spedr", "pro"), "noun_auth")
 }
 
 func TestGolden_NounProject(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "project", "spedr"), "noun_project")
+	assertGolden(t, nounTestCmd(t, "project", "spedr", "pro"), "noun_project")
 }
 
 func TestGolden_NounMonitor(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "monitor", "spedr"), "noun_monitor")
+	assertGolden(t, nounTestCmd(t, "monitor", "spedr", "pro"), "noun_monitor")
 }
 
 func TestGolden_NounCron(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "cron", "spedr"), "noun_cron")
+	assertGolden(t, nounTestCmd(t, "cron", "spedr", "pro"), "noun_cron")
 }
 
 func TestGolden_NounAlerts(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "alerts", "spedr"), "noun_alerts")
+	assertGolden(t, nounTestCmd(t, "alerts", "spedr", "pro"), "noun_alerts")
 }
 
 func TestGolden_NounLogs(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "logs", "spedr"), "noun_logs")
+	assertGolden(t, nounTestCmd(t, "logs", "spedr", "pro"), "noun_logs")
 }
 
 func TestGolden_NounErrors(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "errors", "spedr"), "noun_errors")
+	assertGolden(t, nounTestCmd(t, "errors", "spedr", "pro"), "noun_errors")
 }
 
 func TestGolden_NounConfig(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "config", "spedr"), "noun_config")
+	assertGolden(t, nounTestCmd(t, "config", "spedr", "pro"), "noun_config")
 }
 
 func TestGolden_NounPlan(t *testing.T) {
-	assertGolden(t, nounTestCmd(t, "plan", "spedr"), "noun_plan")
+	assertGolden(t, nounTestCmd(t, "plan", "spedr", "pro"), "noun_plan")
 }
 
 // --- root banner screens ----------------------------------------------------
@@ -92,7 +93,7 @@ func TestGolden_RootAuthenticated(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	opts := noColorOpts("spedr")
+	opts := noColorOpts("spedr", "pro")
 
 	// Create credential store with valid creds.
 	dir := t.TempDir()
@@ -112,7 +113,7 @@ func TestGolden_RootUnauthenticated(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
-	opts := noColorOpts("")
+	opts := noColorOpts("", "")
 
 	// Empty credential store.
 	dir := t.TempDir()
@@ -131,6 +132,7 @@ func TestGolden_RootUnauthenticated(t *testing.T) {
 func TestGolden_ProjectLs(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_TIER", "pro")
 
 	created := time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC)
 	deps := &projectLsDeps{
@@ -152,6 +154,8 @@ func TestGolden_ProjectLs(t *testing.T) {
 func TestGolden_ProjectLsEmpty(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_TIER", "pro")
+	t.Setenv("MUGA_PROJECT", "spedr")
 
 	deps := &projectLsDeps{
 		apiClient: &mockProjectClient{projects: []models.Project{}},
@@ -167,6 +171,8 @@ func TestGolden_ProjectLsEmpty(t *testing.T) {
 func TestGolden_ProjectCreate(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_PROJECT", "spedr")
+	t.Setenv("MUGA_TIER", "pro")
 
 	deps := &projectCreateDeps{
 		apiClient: &mockProjectClient{
@@ -185,6 +191,8 @@ func TestGolden_ProjectCreate(t *testing.T) {
 func TestGolden_ProjectSwitch(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_PROJECT", "spedr")
+	t.Setenv("MUGA_TIER", "pro")
 
 	deps := &projectSwitchDeps{
 		apiClient: &mockProjectClient{
