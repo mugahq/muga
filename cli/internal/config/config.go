@@ -19,6 +19,7 @@ const (
 type Config struct {
 	APIURL  string `mapstructure:"api_url"`
 	Project string `mapstructure:"project"`
+	Tier    string `mapstructure:"tier"`
 }
 
 // Load reads configuration from the config file and environment.
@@ -26,9 +27,11 @@ type Config struct {
 func Load() (*Config, error) {
 	viper.SetDefault("api_url", defaultAPIURL)
 	viper.SetDefault("project", "")
+	viper.SetDefault("tier", "")
 
 	_ = viper.BindEnv("api_url", "MUGA_API_URL")
 	_ = viper.BindEnv("project", "MUGA_PROJECT")
+	_ = viper.BindEnv("tier", "MUGA_TIER")
 
 	viper.SetConfigName(configFile)
 	viper.SetConfigType(configType)
@@ -57,6 +60,7 @@ func Save(cfg *Config) error {
 
 	viper.Set("api_url", cfg.APIURL)
 	viper.Set("project", cfg.Project)
+	viper.Set("tier", cfg.Tier)
 
 	path := filepath.Join(dir, configFile+"."+configType)
 	if err := viper.WriteConfigAs(path); err != nil {

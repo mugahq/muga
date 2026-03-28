@@ -12,15 +12,30 @@ const (
 	dotSep    = " \u00b7 "                 // " · "
 )
 
-// SignatureLine renders "muga ─────── suffix" with a fixed 7-dash separator.
-func (r *Renderer) SignatureLine(suffix string) string {
+// SignatureLine renders "muga ─────── project · tier" with a fixed 7-dash separator.
+// When tier is empty, only the project is shown. When both are empty, only the
+// brand and dashes are rendered.
+func (r *Renderer) SignatureLine(project, tier string) string {
 	dashes := strings.Repeat(dash, numDashes)
+	base := r.purple(brand) + " " + r.purple(dashes)
+
+	suffix := buildSuffix(project, tier)
 	if suffix != "" {
-		return r.purple(brand) + " " +
-			r.purple(dashes) +
-			r.muted(" "+suffix)
+		return base + r.muted(" "+suffix)
 	}
-	return r.purple(brand) + " " + r.purple(dashes)
+	return base
+}
+
+// buildSuffix joins project and tier with " · " when both are present.
+func buildSuffix(project, tier string) string {
+	switch {
+	case project != "" && tier != "":
+		return project + dotSep + tier
+	case project != "":
+		return project
+	default:
+		return ""
+	}
 }
 
 // Tagline returns the branded tagline in dimmed purple.

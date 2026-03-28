@@ -19,6 +19,7 @@ type Opts struct {
 	NoColor bool
 	Verbose bool
 	Project string
+	Tier    string
 	IsTTY   bool
 }
 
