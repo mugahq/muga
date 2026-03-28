@@ -1,0 +1,9 @@
+muga ─────── spedr
+
+PROJECT
+  create  Create a new project
+  ls      List projects
+  rm      Delete a project
+  switch  Set the active project
+
+muga project [cmd] --help for details

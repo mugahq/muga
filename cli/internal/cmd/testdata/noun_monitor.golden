@@ -1,0 +1,8 @@
+muga ─────── spedr
+
+MONITOR
+  add  Create an uptime monitor
+  ls   List uptime monitors
+  rm   Delete an uptime monitor
+
+muga monitor [cmd] --help for details

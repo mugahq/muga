@@ -1,0 +1,9 @@
+muga ─────── spedr
+
+ALERTS
+  add      Create an alert rule
+  history  Show alert timeline
+  ls       List alert rules
+  rm       Delete an alert rule
+
+muga alerts [cmd] --help for details

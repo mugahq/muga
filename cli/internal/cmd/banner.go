@@ -97,8 +97,7 @@ func renderBannerPlain(w io.Writer, cmd *cobra.Command) error {
 // renderBannerTTY outputs the full branded banner with styling.
 func renderBannerTTY(w io.Writer, version string, deps *bannerDeps, opts *output.Opts) error {
 	r := style.NewRenderer(*opts)
-	width := style.TerminalWidth()
-	narrow := width < 40
+	narrow := style.IsNarrow()
 
 	cred := loadCredential(deps)
 	authenticated := cred != nil
@@ -108,12 +107,9 @@ func renderBannerTTY(w io.Writer, version string, deps *bannerDeps, opts *output
 	if authenticated && opts.Project != "" {
 		suffix = opts.Project
 	}
-	_, _ = fmt.Fprintln(w, r.SignatureLine(width, suffix))
+	_, _ = fmt.Fprintln(w, r.SignatureLine(suffix))
 
-	// Tagline — omitted in narrow mode.
-	if !narrow {
-		_, _ = fmt.Fprintln(w, r.Tagline())
-	}
+	_, _ = fmt.Fprintln(w, r.Tagline())
 
 	_, _ = fmt.Fprintln(w)
 
@@ -191,9 +187,8 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 	}
 
 	r := style.NewRenderer(*opts)
-	width := style.TerminalWidth()
 
-	_, _ = fmt.Fprintln(w, r.SignatureLine(width, ""))
+	_, _ = fmt.Fprintln(w, r.SignatureLine(""))
 	_, _ = fmt.Fprintln(w, r.Tagline())
 	_, _ = fmt.Fprintln(w)
 
@@ -279,12 +274,11 @@ func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
 	}
 
 	r := style.NewRenderer(*opts)
-	width := style.TerminalWidth()
-	narrow := width < 40
+	narrow := style.IsNarrow()
 
 	// Signature line.
 	suffix := opts.Project
-	_, _ = fmt.Fprintln(w, r.SignatureLine(width, suffix))
+	_, _ = fmt.Fprintln(w, r.SignatureLine(suffix))
 	_, _ = fmt.Fprintln(w)
 
 	// Section header = noun name in uppercase.

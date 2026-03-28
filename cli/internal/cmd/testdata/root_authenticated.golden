@@ -1,0 +1,17 @@
+muga ─────── spedr
+observability for developers who ship from the terminal
+
+OBSERVABILITY
+  logs     Search, tail, and send log entries
+  monitor  Check if your stuff is up
+  cron     Know when a job goes silent
+  errors   Track and group runtime errors
+  alerts   Get notified when things break
+
+SETUP
+  auth     Sign in, sign out, check status
+  project  Switch between projects
+  config   Tune CLI preferences
+  plan     View your plan and usage
+
+vdev · muga.sh/docs · muga [cmd] --help for details

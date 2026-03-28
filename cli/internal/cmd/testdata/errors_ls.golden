@@ -1,0 +1,4 @@
+  FINGERPRINT  TITLE                                SERVICE     COUNT  LAST SEEN
+  a1b2c3d4     NullPointerException in UserService  api-server  42     2h ago
+  e5f6g7h8     TimeoutError in PaymentClient        payments    7      30m ago
+  i9j0k1l2     ConnectionRefused: redis:6379        api-server  156    5m ago

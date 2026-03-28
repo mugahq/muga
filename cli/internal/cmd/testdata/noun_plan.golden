@@ -1,0 +1,7 @@
+muga ─────── spedr
+
+PLAN
+  status   View your plan and usage
+  upgrade  Open the billing portal
+
+muga plan [cmd] --help for details

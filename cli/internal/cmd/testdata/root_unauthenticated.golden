@@ -1,0 +1,10 @@
+muga ───────
+observability for developers who ship from the terminal
+
+Quick start:
+
+  1. muga auth login        Sign in with GitHub
+  2. muga project create    Create your first project
+  3. muga logs send "hello" Send a test log entry
+
+Run muga help for all commands.

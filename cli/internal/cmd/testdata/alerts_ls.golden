@@ -1,0 +1,4 @@
+  NAME             TYPE          CHANNELS      ENABLED
+  High error rate  error_spike   slack, email  yes
+  API down         monitor_down  webhook       yes
+  Backup missed    cron_missed   email         no
