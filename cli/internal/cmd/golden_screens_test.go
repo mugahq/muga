@@ -132,6 +132,7 @@ func TestGolden_RootUnauthenticated(t *testing.T) {
 func TestGolden_ProjectLs(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_TIER", "pro")
 
 	created := time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC)
 	deps := &projectLsDeps{
@@ -153,6 +154,8 @@ func TestGolden_ProjectLs(t *testing.T) {
 func TestGolden_ProjectLsEmpty(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_TIER", "pro")
+	t.Setenv("MUGA_PROJECT", "spedr")
 
 	deps := &projectLsDeps{
 		apiClient: &mockProjectClient{projects: []models.Project{}},
@@ -168,6 +171,8 @@ func TestGolden_ProjectLsEmpty(t *testing.T) {
 func TestGolden_ProjectCreate(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_PROJECT", "spedr")
+	t.Setenv("MUGA_TIER", "pro")
 
 	deps := &projectCreateDeps{
 		apiClient: &mockProjectClient{
@@ -186,6 +191,8 @@ func TestGolden_ProjectCreate(t *testing.T) {
 func TestGolden_ProjectSwitch(t *testing.T) {
 	resetViper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("MUGA_PROJECT", "spedr")
+	t.Setenv("MUGA_TIER", "pro")
 
 	deps := &projectSwitchDeps{
 		apiClient: &mockProjectClient{

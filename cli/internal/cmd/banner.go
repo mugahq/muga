@@ -304,6 +304,14 @@ func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
 	return nil
 }
 
+// renderSignatureHeader writes the signature line followed by a blank line to w.
+// It is used by verb commands to prefix their output with the branded header.
+func renderSignatureHeader(w io.Writer, opts *output.Opts) {
+	r := style.NewRenderer(*opts)
+	_, _ = fmt.Fprintln(w, r.SignatureLine(opts.Project, opts.Tier))
+	_, _ = fmt.Fprintln(w)
+}
+
 // visibleSubcommands returns non-hidden, non-auto-generated subcommands.
 func visibleSubcommands(cmd *cobra.Command) []*cobra.Command {
 	var result []*cobra.Command
