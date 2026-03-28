@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/olekukonko/tablewriter"
 	"golang.org/x/term"
 )
 
@@ -55,29 +54,56 @@ func RenderJSON(w io.Writer, v any) error {
 	return nil
 }
 
-// RenderTable writes an aligned table with headers and rows to w.
+// RenderTable writes an aligned table with uppercase headers, 2-space indent,
+// and no borders to w.
 func RenderTable(w io.Writer, headers []string, rows [][]string) error {
-	upper := make([]string, len(headers))
+	cols := len(headers)
+	if cols == 0 {
+		return nil
+	}
+
+	// Compute column widths from headers and rows.
+	widths := make([]int, cols)
 	for i, h := range headers {
-		upper[i] = strings.ToUpper(h)
+		if len(h) > widths[i] {
+			widths[i] = len(h)
+		}
 	}
-
-	table := tablewriter.NewTable(w,
-		tablewriter.WithHeader(upper),
-	)
-
 	for _, row := range rows {
-		cells := make([]any, len(row))
-		for i, c := range row {
-			cells[i] = c
-		}
-		if err := table.Append(cells...); err != nil {
-			return fmt.Errorf("appending row: %w", err)
+		for i := 0; i < cols && i < len(row); i++ {
+			if len(row[i]) > widths[i] {
+				widths[i] = len(row[i])
+			}
 		}
 	}
 
-	if err := table.Render(); err != nil {
-		return fmt.Errorf("rendering table: %w", err)
+	// Print header row.
+	var b strings.Builder
+	b.WriteString("  ")
+	for i, h := range headers {
+		if i > 0 {
+			b.WriteString("  ")
+		}
+		fmt.Fprintf(&b, "%-*s", widths[i], strings.ToUpper(h))
 	}
+	fmt.Fprintln(w, b.String())
+
+	// Print data rows.
+	for _, row := range rows {
+		b.Reset()
+		b.WriteString("  ")
+		for i := 0; i < cols; i++ {
+			if i > 0 {
+				b.WriteString("  ")
+			}
+			val := ""
+			if i < len(row) {
+				val = row[i]
+			}
+			fmt.Fprintf(&b, "%-*s", widths[i], val)
+		}
+		fmt.Fprintln(w, b.String())
+	}
+
 	return nil
 }
