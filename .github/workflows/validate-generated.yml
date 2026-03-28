@@ -1,0 +1,42 @@
+name: Validate generated models
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/models/**"
+      - ".github/workflows/validate-generated.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/models/**"
+      - ".github/workflows/validate-generated.yml"
+
+jobs:
+  validate:
+    name: Validate api/models/generated.go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+
+      - name: Check file is not empty
+        run: |
+          if [ ! -s api/models/generated.go ]; then
+            echo "::error file=api/models/generated.go::generated.go is empty — sync may have failed"
+            exit 1
+          fi
+
+      - name: Check file has valid package declaration
+        run: |
+          if ! head -5 api/models/generated.go | grep -q "^package "; then
+            echo "::error file=api/models/generated.go::generated.go missing package declaration"
+            exit 1
+          fi
+
+      - name: Build api/models
+        run: go build ./...
+        working-directory: api/models
