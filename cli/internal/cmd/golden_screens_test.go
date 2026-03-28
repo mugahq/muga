@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/spf13/cobra"
 
+	"github.com/mugahq/muga/api/models"
 	"github.com/mugahq/muga/cli/internal/auth"
 	"github.com/mugahq/muga/cli/internal/output"
-	"github.com/mugahq/muga/api/models"
 )
 
 // --- helpers ----------------------------------------------------------------
@@ -238,7 +237,28 @@ func TestGolden_AuthStatusUnauth(t *testing.T) {
 	assertGolden(t, buf.String(), "auth_status_unauth")
 }
 
+// --- standalone verb screens ------------------------------------------------
+
+func TestGolden_Version(t *testing.T) {
+	resetViper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	root := NewRootCmd("dev", "abc123", "2025-01-01")
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"version"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertGolden(t, buf.String(), "version")
+}
+
 // --- stub verb screens (golden file is the spec) ----------------------------
+
+func TestGolden_AuthLogin(t *testing.T) {
+	t.Skip("not yet implemented — auth login is interactive (device code flow)")
+}
 
 func TestGolden_ProjectRm(t *testing.T) {
 	t.Skip("not yet implemented — golden file is the spec")
@@ -313,6 +333,10 @@ func TestGolden_LogsSearch(t *testing.T) {
 }
 
 func TestGolden_LogsSearchEmpty(t *testing.T) {
+	t.Skip("not yet implemented — golden file is the spec")
+}
+
+func TestGolden_LogsTail(t *testing.T) {
 	t.Skip("not yet implemented — golden file is the spec")
 }
 
