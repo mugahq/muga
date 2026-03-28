@@ -29,6 +29,7 @@ func newAuthStatusCmd() *cobra.Command {
 						"authenticated": false,
 					})
 				}
+				renderVerbHeader(w, opts)
 				_, _ = fmt.Fprintln(w, "Not logged in. Run muga auth login to authenticate.")
 				return nil
 			}
@@ -45,6 +46,7 @@ func newAuthStatusCmd() *cobra.Command {
 				return output.RenderJSON(w, result)
 			}
 
+			renderVerbHeader(w, opts)
 			rows := []output.DetailRow{
 				{Key: "User", Value: cred.UserName},
 				{Key: "Email", Value: cred.UserEmail},

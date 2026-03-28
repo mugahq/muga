@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/spf13/cobra"
 
+	"github.com/mugahq/muga/api/models"
 	"github.com/mugahq/muga/cli/internal/auth"
 	"github.com/mugahq/muga/cli/internal/output"
-	"github.com/mugahq/muga/api/models"
 )
 
 // --- helpers ----------------------------------------------------------------
@@ -203,6 +202,19 @@ func TestGolden_ProjectSwitch(t *testing.T) {
 	assertGolden(t, out, "project_switch")
 }
 
+func injectTTY(root *cobra.Command) {
+	orig := root.PersistentPreRunE
+	root.PersistentPreRunE = func(cmd *cobra.Command, a []string) error {
+		if err := orig(cmd, a); err != nil {
+			return err
+		}
+		opts := output.FromContext(cmd.Context())
+		opts.IsTTY = true
+		opts.NoColor = true
+		return nil
+	}
+}
+
 func TestGolden_AuthLogout(t *testing.T) {
 	resetViper()
 	dir := t.TempDir()
@@ -213,6 +225,7 @@ func TestGolden_AuthLogout(t *testing.T) {
 	_ = store.Save(&auth.Credential{AccessToken: "tok_test"})
 
 	root := NewRootCmd("dev", "abc123", "2025-01-01")
+	injectTTY(root)
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetArgs([]string{"auth", "logout"})
@@ -228,6 +241,7 @@ func TestGolden_AuthStatusUnauth(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	root := NewRootCmd("dev", "abc123", "2025-01-01")
+	injectTTY(root)
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetArgs([]string{"auth", "status"})

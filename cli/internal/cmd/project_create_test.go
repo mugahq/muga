@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/mugahq/muga/api/models"
 	"github.com/mugahq/muga/cli/internal/api"
+	"github.com/mugahq/muga/cli/internal/output"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -58,6 +61,17 @@ func execProjectCreate(t *testing.T, deps *projectCreateDeps, args ...string) (s
 	}
 	projCmd.RemoveCommand(findSubCommand(projCmd, "create"))
 	projCmd.AddCommand(newProjectCreateCmd(deps))
+
+	orig := root.PersistentPreRunE
+	root.PersistentPreRunE = func(cmd *cobra.Command, a []string) error {
+		if err := orig(cmd, a); err != nil {
+			return err
+		}
+		opts := output.FromContext(cmd.Context())
+		opts.IsTTY = true
+		opts.NoColor = true
+		return nil
+	}
 
 	var buf bytes.Buffer
 	root.SetOut(&buf)

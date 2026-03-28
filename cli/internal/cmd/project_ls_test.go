@@ -6,8 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/mugahq/muga/api/models"
 	"github.com/mugahq/muga/cli/internal/api"
+	"github.com/mugahq/muga/cli/internal/output"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
@@ -25,6 +28,19 @@ func execProjectLs(t *testing.T, deps *projectLsDeps, args ...string) (string, e
 	}
 	projCmd.RemoveCommand(findSubCommand(projCmd, "ls"))
 	projCmd.AddCommand(newProjectLsCmd(deps))
+
+	// Inject TTY settings so renderVerbHeader and style renderers behave
+	// consistently in tests regardless of the CI environment.
+	orig := root.PersistentPreRunE
+	root.PersistentPreRunE = func(cmd *cobra.Command, a []string) error {
+		if err := orig(cmd, a); err != nil {
+			return err
+		}
+		opts := output.FromContext(cmd.Context())
+		opts.IsTTY = true
+		opts.NoColor = true
+		return nil
+	}
 
 	var buf bytes.Buffer
 	root.SetOut(&buf)

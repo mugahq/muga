@@ -47,9 +47,11 @@ func runProjectLs(cmd *cobra.Command, deps *projectLsDeps) error {
 		return output.RenderJSON(w, projects)
 	}
 
+	renderVerbHeader(w, opts)
+
 	if len(projects) == 0 {
-		fmt.Fprintln(w, "No projects yet. Run muga project create NAME to get started.")
-		return nil
+		_, err := fmt.Fprintln(w, "No projects yet. Run muga project create to get started.")
+		return err
 	}
 
 	headers := []string{"Name", "Slug", "Created", "Active"}

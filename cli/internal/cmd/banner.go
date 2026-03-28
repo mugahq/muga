@@ -264,6 +264,19 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 //	  logout      Sign out and clear credentials
 //
 //	muga auth [cmd] --help for details
+//
+// renderVerbHeader prints the branded signature line before a verb command's
+// output. It is a no-op for non-TTY, JSON, and nil opts so callers never need
+// to guard against those cases.
+func renderVerbHeader(w io.Writer, opts *output.Opts) {
+	if opts == nil || !opts.IsTTY || opts.JSON {
+		return
+	}
+	r := style.NewRenderer(*opts)
+	_, _ = fmt.Fprintln(w, r.SignatureLine(opts.Project))
+	_, _ = fmt.Fprintln(w)
+}
+
 func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
 	if opts == nil {
 		opts = &output.Opts{}

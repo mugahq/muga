@@ -68,6 +68,7 @@ func runProjectSwitch(cmd *cobra.Command, slug string, deps *projectSwitchDeps) 
 		})
 	}
 
+	renderVerbHeader(w, opts)
 	_, _ = fmt.Fprintf(w, "Switched to project %q\n", slug)
 	return nil
 }
