@@ -1,3 +1,5 @@
+muga ─────── spedr
+
   Title       NullPointerException in UserService.getById
   Service     api-server
   Count       42
@@ -10,6 +12,7 @@
     at Router.handle(Router.java:112)
 
   Recent occurrences:
+    TIMESTAMP            LEVEL  SERVICE     MESSAGE
     2026-03-28 12:30:01  error  api-server  NullPointerException in UserService
     2026-03-28 12:15:22  error  api-server  NullPointerException in UserService
     2026-03-28 11:58:03  error  api-server  NullPointerException in UserService

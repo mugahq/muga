@@ -1,3 +1,5 @@
+muga ─────── spedr
+
   KEY      VALUE                   SOURCE
   api_url  https://api.muga.sh/v1  default
   project  audiarc                 config file
