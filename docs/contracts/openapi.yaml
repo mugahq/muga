@@ -226,6 +226,23 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Revoke current session
+      description: |
+        Revokes the caller's current session. The access token and its
+        associated refresh token become invalid immediately. Other sessions
+        for the same user are not affected.
+      responses:
+        "204":
+          description: Session revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   # ---------------------------------------------------------------------------
   # Projects
   # ---------------------------------------------------------------------------
