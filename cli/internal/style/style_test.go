@@ -84,3 +84,29 @@ func TestErrorMessage_Color(t *testing.T) {
 		t.Errorf("expected error message in output, got %q", got)
 	}
 }
+
+func TestDetailRow_Color(t *testing.T) {
+	r := NewRenderer(output.Opts{IsTTY: true, NoColor: false})
+	got := r.DetailRow("Plan", "pro", 10)
+
+	if !strings.Contains(got, "pro") {
+		t.Errorf("expected value 'pro' in output, got %q", got)
+	}
+}
+
+func TestEmptyHint_Color(t *testing.T) {
+	r := NewRenderer(output.Opts{IsTTY: true, NoColor: false})
+	got := r.EmptyHint("No items found.")
+
+	if !strings.Contains(got, "No items found.") {
+		t.Errorf("expected hint text in output, got %q", got)
+	}
+}
+
+func TestIsNarrow(t *testing.T) {
+	// In test environments TerminalWidth() returns 80 (default), so IsNarrow should be false.
+	got := IsNarrow()
+	if got {
+		t.Error("expected IsNarrow() to be false in test environment (width defaults to 80)")
+	}
+}

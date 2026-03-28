@@ -428,3 +428,96 @@ func TestMaxSubcommandWidth_ExcludesHidden(t *testing.T) {
 		t.Errorf("expected max width 3, got %d", got)
 	}
 }
+
+func TestRenderFullHelp_TTY(t *testing.T) {
+	resetViper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	root := NewRootCmd("0.2.0", "abc123", "2025-01-01")
+	opts := &output.Opts{IsTTY: true, NoColor: true}
+	root.SetContext(output.WithOpts(context.Background(), opts))
+
+	var buf bytes.Buffer
+	if err := renderFullHelp(&buf, root, "0.2.0"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "muga") {
+		t.Error("expected 'muga' in full help output")
+	}
+	if !strings.Contains(out, "COMMANDS") {
+		t.Error("expected 'COMMANDS' section header")
+	}
+	if !strings.Contains(out, "GLOBAL FLAGS") {
+		t.Error("expected 'GLOBAL FLAGS' section")
+	}
+}
+
+func TestRenderFullHelp_NoTTY(t *testing.T) {
+	resetViper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	root := NewRootCmd("0.2.0", "abc123", "2025-01-01")
+	opts := &output.Opts{IsTTY: false}
+	root.SetContext(output.WithOpts(context.Background(), opts))
+
+	var buf bytes.Buffer
+	if err := renderFullHelp(&buf, root, "0.2.0"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "muga") {
+		t.Error("expected 'muga' in non-TTY full help output")
+	}
+	if !strings.Contains(out, "auth") {
+		t.Error("expected command names in non-TTY output")
+	}
+}
+
+func TestStubCommandsReturnNotImplemented(t *testing.T) {
+	resetViper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	stubCmds := [][]string{
+		{"monitor", "add"},
+		{"monitor", "ls"},
+		{"monitor", "rm", "abc123"},
+		{"cron", "add"},
+		{"cron", "ls"},
+		{"cron", "rm", "abc123"},
+		{"cron", "ping", "abc123"},
+		{"alerts", "add"},
+		{"alerts", "ls"},
+		{"alerts", "history"},
+		{"alerts", "rm", "abc123"},
+		{"logs", "search"},
+		{"logs", "tail"},
+		{"logs", "send", "hello"},
+		{"errors", "ls"},
+		{"errors", "show", "abc123"},
+		{"config", "set", "key", "value"},
+		{"config", "get", "key"},
+		{"config", "ls"},
+		{"plan", "status"},
+		{"plan", "upgrade"},
+		{"project", "rm", "my-project"},
+	}
+
+	for _, args := range stubCmds {
+		t.Run(strings.Join(args, "/"), func(t *testing.T) {
+			root := NewRootCmd("dev", "abc123", "2025-01-01")
+			root.SetOut(new(bytes.Buffer))
+			root.SetErr(new(bytes.Buffer))
+			root.SetArgs(args)
+			err := root.Execute()
+			if err == nil {
+				t.Error("expected errNotImplemented, got nil")
+			}
+			if err != errNotImplemented {
+				t.Errorf("expected errNotImplemented, got %v", err)
+			}
+		})
+	}
+}

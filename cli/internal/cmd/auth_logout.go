@@ -26,7 +26,7 @@ func newLogoutCmd() *cobra.Command {
 				return output.RenderJSON(w, map[string]bool{"ok": true})
 			}
 
-			fmt.Fprintln(w, "Logged out.")
+			_, _ = fmt.Fprintln(w, "Logged out.")
 			return nil
 		},
 	}

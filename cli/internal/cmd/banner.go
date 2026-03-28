@@ -89,7 +89,7 @@ func renderBannerJSON(w io.Writer, version string, deps *bannerDeps, opts *outpu
 // renderBannerPlain outputs command names only, one per line — for pipes and CI.
 func renderBannerPlain(w io.Writer, cmd *cobra.Command) error {
 	for _, c := range visibleSubcommands(cmd) {
-		fmt.Fprintln(w, c.Name())
+		_, _ = fmt.Fprintln(w, c.Name())
 	}
 	return nil
 }
@@ -108,14 +108,14 @@ func renderBannerTTY(w io.Writer, version string, deps *bannerDeps, opts *output
 	if authenticated && opts.Project != "" {
 		suffix = opts.Project
 	}
-	fmt.Fprintln(w, r.SignatureLine(width, suffix))
+	_, _ = fmt.Fprintln(w, r.SignatureLine(width, suffix))
 
 	// Tagline — omitted in narrow mode.
 	if !narrow {
-		fmt.Fprintln(w, r.Tagline())
+		_, _ = fmt.Fprintln(w, r.Tagline())
 	}
 
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 
 	if !authenticated {
 		return renderQuickStart(w, r)
@@ -125,13 +125,13 @@ func renderBannerTTY(w io.Writer, version string, deps *bannerDeps, opts *output
 }
 
 func renderQuickStart(w io.Writer, r *style.Renderer) error {
-	fmt.Fprintln(w, "Quick start:")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, r.QuickStartStep(1, "muga auth login", "Sign in with GitHub"))
-	fmt.Fprintln(w, r.QuickStartStep(2, "muga project create", "Create your first project"))
-	fmt.Fprintln(w, r.QuickStartStep(3, `muga logs send "hello"`, "Send a test log entry"))
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Run muga help for all commands.")
+	_, _ = fmt.Fprintln(w, "Quick start:")
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, r.QuickStartStep(1, "muga auth login", "Sign in with GitHub"))
+	_, _ = fmt.Fprintln(w, r.QuickStartStep(2, "muga project create", "Create your first project"))
+	_, _ = fmt.Fprintln(w, r.QuickStartStep(3, `muga logs send "hello"`, "Send a test log entry"))
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Run muga help for all commands.")
 	return nil
 }
 
@@ -139,21 +139,21 @@ func renderCommandGroups(w io.Writer, r *style.Renderer, narrow bool, version st
 	nameWidth := maxCommandNameWidth()
 
 	for i, group := range []commandGroup{observabilityGroup, setupGroup} {
-		fmt.Fprintln(w, r.SectionHeader(group.title))
+		_, _ = fmt.Fprintln(w, r.SectionHeader(group.title))
 		for _, entry := range group.commands {
 			if narrow {
-				fmt.Fprintln(w, r.CommandRow(entry.name, "", nameWidth))
+				_, _ = fmt.Fprintln(w, r.CommandRow(entry.name, "", nameWidth))
 			} else {
-				fmt.Fprintln(w, r.CommandRow(entry.name, entry.desc, nameWidth))
+				_, _ = fmt.Fprintln(w, r.CommandRow(entry.name, entry.desc, nameWidth))
 			}
 		}
 		if i == 0 {
-			fmt.Fprintln(w)
+			_, _ = fmt.Fprintln(w)
 		}
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
 	return nil
 }
 
@@ -186,15 +186,16 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 	opts := output.FromContext(cmd.Context())
 
 	if !opts.IsTTY {
+		_, _ = fmt.Fprintln(w, "muga")
 		return renderBannerPlain(w, cmd)
 	}
 
 	r := style.NewRenderer(*opts)
 	width := style.TerminalWidth()
 
-	fmt.Fprintln(w, r.SignatureLine(width, ""))
-	fmt.Fprintln(w, r.Tagline())
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, r.SignatureLine(width, ""))
+	_, _ = fmt.Fprintln(w, r.Tagline())
+	_, _ = fmt.Fprintln(w)
 
 	// Expanded commands: show subcommands.
 	nameWidth := 0
@@ -227,14 +228,14 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 		}
 	}
 
-	fmt.Fprintln(w, r.SectionHeader("Commands"))
+	_, _ = fmt.Fprintln(w, r.SectionHeader("Commands"))
 	for _, c := range commands {
-		fmt.Fprintln(w, r.CommandRow(c.name, c.desc, nameWidth))
+		_, _ = fmt.Fprintln(w, r.CommandRow(c.name, c.desc, nameWidth))
 	}
 
 	// Global flags section.
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, r.SectionHeader("Global flags"))
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, r.SectionHeader("Global flags"))
 
 	flags := []struct{ flag, desc string }{
 		{"--json", "Output in JSON format"},
@@ -250,11 +251,11 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 		}
 	}
 	for _, f := range flags {
-		fmt.Fprintf(w, "  %-*s  %s\n", flagWidth, f.flag, f.desc)
+		_, _ = fmt.Fprintf(w, "  %-*s  %s\n", flagWidth, f.flag, f.desc)
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
 	return nil
 }
 
@@ -283,26 +284,26 @@ func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
 
 	// Signature line.
 	suffix := opts.Project
-	fmt.Fprintln(w, r.SignatureLine(width, suffix))
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, r.SignatureLine(width, suffix))
+	_, _ = fmt.Fprintln(w)
 
 	// Section header = noun name in uppercase.
-	fmt.Fprintln(w, r.SectionHeader(cmd.Name()))
+	_, _ = fmt.Fprintln(w, r.SectionHeader(cmd.Name()))
 
 	// Subcommand rows.
 	nameWidth := maxSubcommandWidth(cmd)
 	for _, sub := range visibleSubcommands(cmd) {
 		if narrow {
-			fmt.Fprintln(w, r.CommandRow(sub.Name(), "", nameWidth))
+			_, _ = fmt.Fprintln(w, r.CommandRow(sub.Name(), "", nameWidth))
 		} else {
-			fmt.Fprintln(w, r.CommandRow(sub.Name(), sub.Short, nameWidth))
+			_, _ = fmt.Fprintln(w, r.CommandRow(sub.Name(), sub.Short, nameWidth))
 		}
 	}
 
 	// Footer (skip for narrow terminals).
 	if !narrow {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, r.Footer(fmt.Sprintf("muga %s [cmd] --help for details", cmd.Name())))
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, r.Footer(fmt.Sprintf("muga %s [cmd] --help for details", cmd.Name())))
 	}
 
 	return nil
