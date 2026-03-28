@@ -13,6 +13,9 @@ info:
     name: Muga
     url: https://muga.sh
 
+# The /v1 prefix in the server URL is NOT included in the path definitions below.
+# It is applied at mount time via HandlerFromMuxWithBaseURL("/v1") in server.go.
+# If you change this prefix, update the BaseURL argument in server.go accordingly.
 servers:
   - url: https://api.muga.sh/v1
     description: Production
