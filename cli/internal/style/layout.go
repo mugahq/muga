@@ -7,9 +7,9 @@ import (
 
 const (
 	brand     = "muga"
-	dash      = "\u2500" // U+2500 BOX DRAWINGS LIGHT HORIZONTAL
-	numDashes = 7        // fixed dash count
-	dotSep    = " \u00b7 "                 // " · "
+	dash      = "\u2500"   // U+2500 BOX DRAWINGS LIGHT HORIZONTAL
+	numDashes = 7          // fixed dash count
+	dotSep    = " \u00b7 " // " · "
 )
 
 // SignatureLine renders "muga ─────── project · tier" with a fixed 7-dash separator.
