@@ -1,6 +1,7 @@
 package style
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
@@ -60,6 +61,32 @@ func (r *Renderer) muted(text string) string {
 		return text
 	}
 	return lipgloss.NewStyle().Foreground(Muted).Render(text)
+}
+
+// DetailRow renders a key-value pair for detail views.
+//
+//	Plan         pro
+func (r *Renderer) DetailRow(key, value string, keyWidth int) string {
+	padded := fmt.Sprintf("%-*s", keyWidth, key)
+	if !r.styled() {
+		return fmt.Sprintf("  %s  %s", padded, value)
+	}
+	dimKey := lipgloss.NewStyle().Foreground(Muted).Render(padded)
+	return fmt.Sprintf("  %s  %s", dimKey, value)
+}
+
+// EmptyHint renders a hint message for empty lists.
+func (r *Renderer) EmptyHint(msg string) string {
+	return r.muted(msg)
+}
+
+// ErrorMessage renders an error message, red in color mode.
+func (r *Renderer) ErrorMessage(msg string) string {
+	text := "Error: " + msg
+	if !r.styled() {
+		return text
+	}
+	return lipgloss.NewStyle().Foreground(Error).Render(text)
 }
 
 // TerminalWidth returns the current terminal width, defaulting to 80.

@@ -48,7 +48,7 @@ type deviceFlowClient interface {
 func newLoginCmd(deps *loginDeps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "login",
-		Short: "Authenticate with GitHub via device flow",
+		Short: "Sign in with GitHub",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if deps == nil {
 				cfg := config.FromContext(cmd.Context())

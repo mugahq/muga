@@ -188,3 +188,66 @@ func TestProjectFromConfig(t *testing.T) {
 		t.Errorf("expected project=from-config, got %q", gotOpts.Project)
 	}
 }
+
+func TestAllNounCommandsRegistered(t *testing.T) {
+	resetViper()
+	cmd := NewRootCmd("dev", "abc123", "2025-01-01")
+
+	expected := []string{
+		"auth", "project", "monitor", "cron", "alerts",
+		"logs", "errors", "config", "plan", "version",
+	}
+
+	registered := make(map[string]bool)
+	for _, sub := range cmd.Commands() {
+		registered[sub.Name()] = true
+	}
+
+	for _, name := range expected {
+		if !registered[name] {
+			t.Errorf("expected noun command %q to be registered", name)
+		}
+	}
+}
+
+func TestNounCommandsHaveSubcommands(t *testing.T) {
+	resetViper()
+	root := NewRootCmd("dev", "abc123", "2025-01-01")
+
+	nouns := map[string][]string{
+		"auth":    {"login", "logout", "status"},
+		"project": {"create", "ls", "switch", "rm"},
+		"monitor": {"add", "ls", "rm"},
+		"cron":    {"add", "ls", "rm", "ping"},
+		"alerts":  {"add", "ls", "history", "rm"},
+		"logs":    {"search", "tail", "send"},
+		"errors":  {"ls", "show"},
+		"config":  {"set", "get", "ls"},
+		"plan":    {"status", "upgrade"},
+	}
+
+	for noun, verbs := range nouns {
+		var nounCmd *cobra.Command
+		for _, sub := range root.Commands() {
+			if sub.Name() == noun {
+				nounCmd = sub
+				break
+			}
+		}
+		if nounCmd == nil {
+			t.Errorf("noun command %q not found", noun)
+			continue
+		}
+
+		registered := make(map[string]bool)
+		for _, sub := range nounCmd.Commands() {
+			registered[sub.Name()] = true
+		}
+
+		for _, verb := range verbs {
+			if !registered[verb] {
+				t.Errorf("expected verb %q under %q", verb, noun)
+			}
+		}
+	}
+}

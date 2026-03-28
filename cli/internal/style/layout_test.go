@@ -87,9 +87,6 @@ func TestCommandRowNoDescription(t *testing.T) {
 	if !strings.HasPrefix(row, "  logs") {
 		t.Errorf("expected leading spaces and name, got %q", row)
 	}
-	if strings.Contains(row, "  logs  ") {
-		// Should not have trailing gap for description.
-	}
 }
 
 func TestFooter(t *testing.T) {
