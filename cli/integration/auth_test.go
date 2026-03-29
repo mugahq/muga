@@ -18,7 +18,7 @@ func TestAuth_Login_DeviceFlow(t *testing.T) {
 
 	assertExitCode(t, result, 0)
 	assertStdoutContains(t, result, "INTG-1234")
-	assertStdoutContains(t, result, "Logged in as Integration User")
+	assertStdoutContains(t, result, "Authenticated successfully")
 }
 
 func TestAuth_Login_SavesCredentials(t *testing.T) {
