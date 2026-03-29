@@ -47,6 +47,7 @@ func newAuthStatusCmd() *cobra.Command {
 				return output.RenderJSON(w, result)
 			}
 
+			renderSignatureHeader(w, opts)
 			rows := []output.DetailRow{
 				{Key: "User", Value: cred.UserName},
 				{Key: "Email", Value: cred.UserEmail},
