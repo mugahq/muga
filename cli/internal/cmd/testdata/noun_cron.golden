@@ -7,3 +7,4 @@ CRON
   rm    Delete a cron monitor
 
 muga cron [cmd] --help for details
+

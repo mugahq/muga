@@ -6,3 +6,4 @@ Ping URL: https://api.muga.sh/v1/crons/550e8400/ping
 
 Add to your crontab:
   curl -fsS https://api.muga.sh/v1/crons/550e8400/ping
+

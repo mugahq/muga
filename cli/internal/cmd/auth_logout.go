@@ -28,6 +28,7 @@ func newLogoutCmd() *cobra.Command {
 
 			renderSignatureHeader(w, opts)
 			_, _ = fmt.Fprintln(w, "Logged out.")
+			_, _ = fmt.Fprintln(w)
 			return nil
 		},
 	}

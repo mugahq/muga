@@ -116,13 +116,17 @@ func renderBannerTTY(w io.Writer, version string, deps *bannerDeps, opts *output
 	_, _ = fmt.Fprintln(w)
 
 	if !authenticated {
-		return renderQuickStart(w, r)
+		renderQuickStart(w, r)
+		_, _ = fmt.Fprintln(w)
+		return nil
 	}
 
-	return renderCommandGroups(w, r, narrow, version)
+	renderCommandGroups(w, r, narrow, version)
+	_, _ = fmt.Fprintln(w)
+	return nil
 }
 
-func renderQuickStart(w io.Writer, r *style.Renderer) error {
+func renderQuickStart(w io.Writer, r *style.Renderer) {
 	_, _ = fmt.Fprintln(w, "Quick start:")
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, r.QuickStartStep(1, "muga auth login", "Sign in with GitHub"))
@@ -130,10 +134,9 @@ func renderQuickStart(w io.Writer, r *style.Renderer) error {
 	_, _ = fmt.Fprintln(w, r.QuickStartStep(3, `muga logs send "hello"`, "Send a test log entry"))
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Run muga help for all commands.")
-	return nil
 }
 
-func renderCommandGroups(w io.Writer, r *style.Renderer, narrow bool, version string) error {
+func renderCommandGroups(w io.Writer, r *style.Renderer, narrow bool, version string) {
 	nameWidth := maxCommandNameWidth()
 
 	for i, group := range []commandGroup{observabilityGroup, setupGroup} {
@@ -152,7 +155,6 @@ func renderCommandGroups(w io.Writer, r *style.Renderer, narrow bool, version st
 
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
-	return nil
 }
 
 func maxCommandNameWidth() int {
@@ -253,6 +255,7 @@ func renderFullHelp(w io.Writer, cmd *cobra.Command, version string) error {
 
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, r.Footer("v"+strings.TrimPrefix(version, "v"), "muga.sh/docs", "muga [cmd] --help for details"))
+	_, _ = fmt.Fprintln(w)
 	return nil
 }
 
@@ -301,6 +304,7 @@ func renderNounHelp(w io.Writer, cmd *cobra.Command, opts *output.Opts) error {
 		_, _ = fmt.Fprintln(w, r.Footer(fmt.Sprintf("muga %s [cmd] --help for details", cmd.Name())))
 	}
 
+	_, _ = fmt.Fprintln(w)
 	return nil
 }
 

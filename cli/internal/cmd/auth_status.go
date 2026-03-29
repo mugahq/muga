@@ -31,6 +31,7 @@ func newAuthStatusCmd() *cobra.Command {
 				}
 				renderSignatureHeader(w, opts)
 				_, _ = fmt.Fprintln(w, "Not logged in. Run muga auth login to authenticate.")
+				_, _ = fmt.Fprintln(w)
 				return nil
 			}
 
@@ -56,7 +57,11 @@ func newAuthStatusCmd() *cobra.Command {
 					Value: cred.ExpiresAt.UTC().Format("2006-01-02 15:04 UTC"),
 				})
 			}
-			return output.RenderDetail(w, rows)
+			if err := output.RenderDetail(w, rows); err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintln(w)
+			return nil
 		},
 	}
 }
