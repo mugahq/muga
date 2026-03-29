@@ -4,3 +4,4 @@ muga ─────── spedr · pro
   Homepage  https://example.com/health         60s       up       2 min ago
   API       https://api.example.com/healthz    30s       down     30s ago
   Staging   https://staging.example.com        300s      unknown  never
+

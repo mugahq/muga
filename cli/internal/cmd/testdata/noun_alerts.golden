@@ -7,3 +7,4 @@ ALERTS
   rm       Delete an alert rule
 
 muga alerts [cmd] --help for details
+

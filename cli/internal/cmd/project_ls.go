@@ -51,6 +51,7 @@ func runProjectLs(cmd *cobra.Command, deps *projectLsDeps) error {
 
 	if len(projects) == 0 {
 		_, _ = fmt.Fprintln(w, "No projects yet. Run muga project create to get started.")
+		_, _ = fmt.Fprintln(w)
 		return nil
 	}
 
@@ -69,5 +70,9 @@ func runProjectLs(cmd *cobra.Command, deps *projectLsDeps) error {
 		})
 	}
 
-	return output.RenderTable(w, headers, rows)
+	if err := output.RenderTable(w, headers, rows); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintln(w)
+	return nil
 }

@@ -5,3 +5,4 @@ muga ─────── spedr · pro
   2026-03-28 14:28:45  warn   api-server  Slow query: 1.2s on users_table
   2026-03-28 14:27:12  error  api-server  NullPointerException in UserService
   2026-03-28 14:25:00  warn   api-server  Connection pool exhausted (95%)
+

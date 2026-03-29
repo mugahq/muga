@@ -6,3 +6,4 @@ AUTH
   status  Show current authentication state
 
 muga auth [cmd] --help for details
+

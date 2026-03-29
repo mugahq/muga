@@ -6,3 +6,4 @@ LOGS
   tail    Stream log entries in real time
 
 muga logs [cmd] --help for details
+

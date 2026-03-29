@@ -37,7 +37,7 @@ func TestVersionCmdFormat(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	expected := "muga dev (commit: unknown, built: unknown)\n"
+	expected := "muga dev (commit: unknown, built: unknown)\n\n"
 	if got := buf.String(); got != expected {
 		t.Errorf("expected %q, got %q", expected, got)
 	}

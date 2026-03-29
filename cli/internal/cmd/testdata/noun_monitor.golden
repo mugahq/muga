@@ -6,3 +6,4 @@ MONITOR
   rm   Delete an uptime monitor
 
 muga monitor [cmd] --help for details
+

@@ -6,3 +6,4 @@ CONFIG
   set  Set a configuration value
 
 muga config [cmd] --help for details
+
