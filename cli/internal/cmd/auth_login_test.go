@@ -117,11 +117,8 @@ func TestLoginSuccess(t *testing.T) {
 	if !strings.Contains(out, "ABCD-1234") {
 		t.Errorf("expected user code in output, got %q", out)
 	}
-	if !strings.Contains(out, "Alice") {
-		t.Errorf("expected user name in output, got %q", out)
-	}
-	if !strings.Contains(out, "✓") {
-		t.Errorf("expected checkmark in output, got %q", out)
+	if !strings.Contains(out, "Authenticated successfully") {
+		t.Errorf("expected success message in output, got %q", out)
 	}
 
 	store := deps.credStore.(*mockCredStore)
@@ -286,8 +283,8 @@ func TestLoginAlreadyLoggedInConfirm(t *testing.T) {
 	}
 
 	out := buf.String()
-	if !strings.Contains(out, "Alice") {
-		t.Errorf("expected 'Alice' in output, got %q", out)
+	if !strings.Contains(out, "Authenticated successfully") {
+		t.Errorf("expected success message in output, got %q", out)
 	}
 
 	store := deps.credStore.(*mockCredStore)
@@ -363,8 +360,8 @@ func TestLoginEmailFallback(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(out, "alice@example.com") {
-		t.Errorf("expected email in output, got %q", out)
+	if !strings.Contains(out, "Authenticated successfully") {
+		t.Errorf("expected success message in output, got %q", out)
 	}
 }
 

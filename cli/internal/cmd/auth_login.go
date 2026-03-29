@@ -61,6 +61,7 @@ func newLoginCmd(deps *loginDeps) *cobra.Command {
 
 func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	opts := output.FromContext(ctx)
+	w := cmd.OutOrStdout()
 
 	// Check if already logged in.
 	existing, err := deps.credStore.Load()
@@ -69,7 +70,11 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 	}
 	if existing != nil {
 		if !confirmReauth(cmd, opts, deps.stdin) {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Login cancelled.")
+			if !opts.JSON {
+				renderSignatureHeader(w, opts)
+				_, _ = fmt.Fprintln(w, "Login cancelled.")
+				_, _ = fmt.Fprintln(w)
+			}
 			return nil
 		}
 	}
@@ -80,10 +85,12 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 		return fmt.Errorf("server unreachable — check your connection or API URL: %w", err)
 	}
 
-	w := cmd.OutOrStdout()
+	if !opts.JSON {
+		renderSignatureHeader(w, opts)
+	}
 
 	// Step 2: Display code and open browser.
-	_, _ = fmt.Fprintln(w, "\nOpening browser to authenticate with GitHub...")
+	_, _ = fmt.Fprintln(w, "Opening browser to authenticate...")
 	_, _ = fmt.Fprintf(w, "\n  Your code: %s\n", device.UserCode)
 
 	if err := deps.openBrowser(device.VerificationUri); err != nil {
@@ -99,7 +106,7 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 		interval = defaultPollInterval
 	}
 
-	_, _ = fmt.Fprintf(w, "\nWaiting for authorization...")
+	_, _ = fmt.Fprintf(w, "\nWaiting for confirmation...")
 
 	token, err := pollForToken(ctx, deps.apiClient, device.DeviceCode, interval)
 	if err != nil {
@@ -139,7 +146,9 @@ func runLogin(ctx context.Context, cmd *cobra.Command, deps *loginDeps) error {
 		})
 	}
 
-	_, _ = fmt.Fprintf(w, " ✓\n\nLogged in as %s\n", identity)
+	_, _ = fmt.Fprintln(w, " done.")
+	_, _ = fmt.Fprintln(w, "Authenticated successfully.")
+	_, _ = fmt.Fprintln(w)
 	return nil
 }
 
